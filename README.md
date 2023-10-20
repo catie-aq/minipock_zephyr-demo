@@ -1,4 +1,4 @@
-![banner](imgs/MiniPock_banner.png)
+![banner](imgs/MiniPock_banner_dark_mode.png)
 
 # MiniPock Firmware
 
