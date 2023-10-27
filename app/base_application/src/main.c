@@ -13,6 +13,10 @@
 #include <rmw_microros/rmw_microros.h>
 
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/uart.h>
+
+#include "pb_encode.h"
+#include "src/minipock.pb.h"
 
 #define RCCHECK(fn)                                                                                \
     {                                                                                              \
@@ -33,18 +37,36 @@
 rcl_subscription_t subscriber;
 geometry_msgs__msg__Twist msg;
 
-// Inti LED0
+// LED0
 #define LED0_NODE DT_ALIAS(led0)
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
+// UART
+// #define RBDC_UART_DEVICE_NODE DT_CHOSEN(DT_ALIAS(rbdc_serial_port))
+static const struct device *const uart_dev = DEVICE_DT_GET(DT_ALIAS(rbdc_serial_port));
+
 void subscription_callback(const void *msgin)
 {
-    const geometry_msgs__msg__Twist *msg = (const geometry_msgs__msg__Twist *)msgin;
-    // printf("Received: x: %f, y: %f, z: %f\n", msg->linear.x, msg->linear.y, msg->linear.z);
-    // printf("Received: x: %f, y: %f, z: %f\n", msg->angular.x, msg->angular.y, msg->angular.z);
+    const geometry_msgs__msg__Twist *uros_msg = (const geometry_msgs__msg__Twist *)msgin;
 
     // Toggle LED0
     gpio_pin_toggle_dt(&led);
+
+    cmd_vel msg = cmd_vel_init_zero;
+    msg.linear_x = (float)uros_msg->linear.x;
+    msg.linear_y = (float)uros_msg->linear.y;
+    msg.linear_z = (float)uros_msg->linear.z;
+    msg.angular_x = (float)uros_msg->angular.x;
+    msg.angular_y = (float)uros_msg->angular.y;
+    msg.angular_z = (float)uros_msg->angular.z;
+
+    uint8_t buffer[cmd_vel_size];
+
+    pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+    pb_encode(&stream, cmd_vel_fields, &cmd_vel_msg);
+
+    uart_tx(uart_dev, buffer, stream.bytes_written, SYS_FOREVER_MS);
 }
 
 int main()

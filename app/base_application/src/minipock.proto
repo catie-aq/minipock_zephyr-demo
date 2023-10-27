@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+message cmd_vel {
+  float linear_x = 1;
+  float linear_y = 2;
+  float linear_z = 3;
+  float angular_x = 4;
+  float angular_y = 5;
+  float angular_z = 6;
+}
+
+message odom {
+  float x = 1;
+  float y = 2;
+  float theta = 3;
+}
