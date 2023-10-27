@@ -33,4 +33,7 @@ west flash
 
 ```bash
 docker run -it --rm -v /dev:/dev --privileged --net=host microros/micro-ros-agent:humble serial --dev /dev/ttyUSB[X] -v6
-``````
+```
+
+## Examples
+- [Base Application](app/base_application): Simple application to control the MiniPock.
