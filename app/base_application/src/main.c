@@ -64,7 +64,9 @@ void subscription_callback(const void *msgin)
 
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
-    pb_encode(&stream, cmd_vel_fields, &cmd_vel_msg);
+    if (!pb_encode(&stream, cmd_vel_fields, &cmd_vel_msg)) {
+        return;
+    }
 
     uart_tx(uart_dev, buffer, stream.bytes_written, SYS_FOREVER_MS);
 }
