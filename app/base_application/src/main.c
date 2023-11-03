@@ -5,7 +5,9 @@
 #include <rmw_microros/rmw_microros.h>
 
 #include <geometry_msgs/msg/twist.h>
+#include <nav_msgs/msg/odometry.h>
 
+#include <math.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -15,6 +17,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/uart.h>
 
+#include "pb_decode.h"
 #include "pb_encode.h"
 #include "src/minipock.pb.h"
 
@@ -35,6 +38,8 @@
     }
 
 rcl_subscription_t subscriber;
+rcl_publisher_t publisher;
+
 geometry_msgs__msg__Twist msg;
 
 // LED0
@@ -42,8 +47,55 @@ geometry_msgs__msg__Twist msg;
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 // UART
-// #define RBDC_UART_DEVICE_NODE DT_CHOSEN(DT_ALIAS(rbdc_serial_port))
 static const struct device *const uart_dev = DEVICE_DT_GET(DT_ALIAS(rbdc_serial_port));
+
+void publish_odometry_message(const uint8_t *data, size_t length)
+{
+    pb_istream_t stream = pb_istream_from_buffer(data, length);
+
+    odom msg = odom_init_zero;
+
+    if (!pb_decode(&stream, odom_fields, &msg)) {
+        return;
+    }
+
+    // Convert x, y, theta to quaternion
+    float q0 = cos((float)msg.theta / 2);
+    float q1 = 0;
+    float q2 = 0;
+    float q3 = sin((float)msg.theta / 2);
+
+    // Convert to ROS message
+    nav_msgs__msg__Odometry odometry_msg;
+
+    odometry_msg.pose.pose.position.x = (float)msg.x;
+    odometry_msg.pose.pose.position.y = (float)msg.y;
+    odometry_msg.pose.pose.position.z = 0;
+
+    odometry_msg.pose.pose.orientation.x = q0;
+    odometry_msg.pose.pose.orientation.y = q1;
+    odometry_msg.pose.pose.orientation.z = q2;
+    odometry_msg.pose.pose.orientation.w = q3;
+
+    // Publish message
+    if (!rcl_publish(&publisher, &odometry_msg, NULL)) {
+        return;
+    }
+}
+
+void uart_callback_handler(const struct device *dev, struct uart_event *evt, void *user_data)
+{
+    uint8_t buffer[128];
+    size_t length = 0;
+
+    while (uart_irq_update(dev) && uart_irq_is_pending(dev)) {
+        if (uart_irq_rx_ready(dev)) {
+            length = uart_fifo_read(dev, buffer, sizeof(buffer));
+        }
+
+        publish_odometry_message(buffer, length);
+    }
+}
 
 void subscription_callback(const void *msgin)
 {
@@ -111,6 +163,10 @@ int main()
     RCCHECK(rclc_subscription_init_default(
             &subscriber, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist), "cmd_vel"));
 
+    // Create publisher
+    RCCHECK(rclc_publisher_init_default(
+            &publisher, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Odometry), "odom"));
+
     // create executor
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
     RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
@@ -118,6 +174,9 @@ int main()
             &executor, &subscriber, &msg, &subscription_callback, ON_NEW_DATA));
 
     rclc_executor_spin(&executor);
+
+    // Set UART callback
+    uart_callback_set(uart_dev, uart_callback_handler, NULL);
 
     while (1) {
         rclc_executor_spin_some(&executor, 100);
