@@ -1,4 +1,5 @@
-![banner](imgs/MiniPock_banner_dark_mode.png)
+![banner](.img/MiniPock_banner_dark_theme.png#gh-dark-mode-only)
+![banner](.img/MiniPock_banner_light_theme.png#gh-light-mode-only)
 
 # MiniPock Firmware
 
