@@ -8,6 +8,7 @@
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 
+#include <zephyr/drivers/pwm.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/uart.h>
 
@@ -33,6 +34,24 @@ static void process_data(const struct device *dev)
     if (data->handler != NULL) {
         data->handler(dev, &drdy_trigger);
     }
+}
+
+static int hls_lfcd2_init_pwm(const struct device *dev)
+{
+    const struct hls_lfcd2_config *cfg = dev->config;
+    struct hls_lfcd2_data *data = dev->data;
+
+    const struct pwm_dt_spec *led = &cfg->pwm;
+
+    if (!device_is_ready(led->pwm_dev)) {
+        LOG_ERR("PWM device %s is not ready", led->pwm_dev->name);
+        return -ENODEV;
+    }
+
+    // Set duty cycle to 50%
+    pwm_set_pulse_dt(&led->pwm_dev, 500000);
+
+    return 0;
 }
 
 static void hls_lfcd2_uart_callback(const struct device *dev, void *user_data)
@@ -103,6 +122,7 @@ static int hls_lfcd2_channel_get(
 static int hls_lfcd2_init(const struct device *dev)
 {
     const struct hls_lfcd2_config *cfg = dev->config;
+    int ret;
 
     if (!device_is_ready(cfg->dev)) {
         LOG_ERR("UART device %s is not ready", cfg->dev->name);
@@ -110,6 +130,13 @@ static int hls_lfcd2_init(const struct device *dev)
     }
 
     uart_irq_callback_user_data_set(cfg->dev, hls_lfcd2_uart_callback, (void *)dev);
+
+    ret = hls_lfcd2_init_pwm(dev);
+
+    if (ret < 0) {
+        LOG_ERR("Failed to initialize PWM");
+        return ret;
+    }
 
     return 0;
 }
@@ -122,17 +149,18 @@ static const struct sensor_driver_api hls_lfcd2_api = {
 #define HLS_LFCD2_INIT(n)                                                                          \
     static struct hls_lfcd2_data hls_lfcd2_data_##n;                                               \
                                                                                                    \
-    static const struct hls_lfcd2_config hls_lfcd2_config_##n = {                                  \
-        .dev = DEVICE_DT_GET(DT_INST_BUS(n)),                                                      \
-    };                                                                                             \
-                                                                                                   \
-    DEVICE_DT_INST_DEFINE(n,                                                                       \
-            hls_lfcd2_init,                                                                        \
-            NULL,                                                                                  \
-            &hls_lfcd2_data_##n,                                                                   \
-            &hls_lfcd2_config_##n,                                                                 \
-            POST_KERNEL,                                                                           \
-            CONFIG_SENSOR_INIT_PRIORITY,                                                           \
-            &hls_lfcd2_api);
+    static const struct hls_lfcd2_config hls_lfcd2_config_##n                                      \
+            = { .dev = DEVICE_DT_GET(DT_INST_BUS(n)), .pwm = GPIO_DT_SPEC_INST_GET_OR(n, pwm, {}),
+}
+;
+
+DEVICE_DT_INST_DEFINE(n,
+        hls_lfcd2_init,
+        NULL,
+        &hls_lfcd2_data_##n,
+        &hls_lfcd2_config_##n,
+        POST_KERNEL,
+        CONFIG_SENSOR_INIT_PRIORITY,
+        &hls_lfcd2_api);
 
 DT_INST_FOREACH_STATUS_OKAY(HLS_LFCD2_INIT)

@@ -4,7 +4,7 @@
 config HLS_LFCD2
 	bool "HLS LFCD2 LiDAR"
 	default y
-	# depends on DT_HAS_HLS_LFCD2_ENABLED
-	# select PWM
+	depends on DT_HAS_HLS_LFCD2_ENABLED
+	select PWM
 	help
 	  Enable HLS LFCD2 LiDAR.

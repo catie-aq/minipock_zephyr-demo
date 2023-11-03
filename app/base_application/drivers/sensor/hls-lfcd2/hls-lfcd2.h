@@ -17,6 +17,7 @@ struct hls_lfcd2_buf {
 
 struct hls_lfcd2_config {
     const struct device *dev;
+    struct pwm_dt_spec pwm;
 };
 
 struct hls_lfcd2_data {
