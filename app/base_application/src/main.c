@@ -150,7 +150,7 @@ int main()
 
     rcl_init_options_t init_options = rcl_get_zero_initialized_init_options();
     RCCHECK(rcl_init_options_init(&init_options, allocator));
-    RCCHECK(rcl_init_options_set_domain_id(&init_options, 10));
+    RCCHECK(rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID));
 
     // create init_options
     RCCHECK(rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator));

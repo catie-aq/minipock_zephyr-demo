@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "MiniPock configuration"
+
+menu "Zephyr"
+source "Kconfig.zephyr"
+endmenu
+
+config ROS_ROS_DOMAIN_ID
+    int "ROS Domain ID"
+    default 10
