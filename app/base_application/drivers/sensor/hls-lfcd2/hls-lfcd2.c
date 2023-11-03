@@ -142,17 +142,16 @@ static int hls_lfcd2_init(const struct device *dev)
 }
 
 static const struct sensor_driver_api hls_lfcd2_api = {
-    // .sample_fetch = hls_lfcd2_sample_fetch,
     .channel_get = hls_lfcd2_channel_get,
 };
 
 #define HLS_LFCD2_INIT(n)                                                                          \
     static struct hls_lfcd2_data hls_lfcd2_data_##n;                                               \
                                                                                                    \
-    static const struct hls_lfcd2_config hls_lfcd2_config_##n                                      \
-            = { .dev = DEVICE_DT_GET(DT_INST_BUS(n)), .pwm = GPIO_DT_SPEC_INST_GET_OR(n, pwm, {}),
-}
-;
+    static const struct hls_lfcd2_config hls_lfcd2_config_##n = {                                  \
+        .dev = DEVICE_DT_GET(DT_INST_BUS(n)),                                                      \
+        .pwm = GPIO_DT_SPEC_INST_GET_OR(n, pwm, {}),                                               \
+    };
 
 DEVICE_DT_INST_DEFINE(n,
         hls_lfcd2_init,
