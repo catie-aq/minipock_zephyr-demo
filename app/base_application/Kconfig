@@ -9,3 +9,5 @@ endmenu
 config ROS_ROS_DOMAIN_ID
     int "ROS Domain ID"
     default 10
+
+rsource "drivers/Kconfig"

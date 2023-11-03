@@ -11,7 +11,9 @@ set(NANOPB_OPTIONS "-I${CMAKE_SOURCE_DIR}")
 nanopb_generate_cpp(proto_sources proto_headers RELPATH .
     src/minipock.proto
 )
-# we need to be able to include generated header files
+# we need to be able to include protobuf generated header files
 zephyr_library_include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+add_subdirectory(drivers)
 
 target_sources(app PRIVATE ${proto_sources} src/main.c)
