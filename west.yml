@@ -7,6 +7,8 @@ manifest:
       url-base: https://github.com/zephyrproject-rtos
     - name: micro-ROS
       url-base: https://github.com/micro-ROS
+    - name: catie-6tron
+      url-base: https://github.com/catie-aq
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
@@ -21,3 +23,7 @@ manifest:
       remote: micro-ROS
       revision: humble
       path: modules/micro_ros_zephyr_module
+    - name: zephyr_hls-lfcd2
+      remote: catie-6tron
+      revision: master
+      path: 6tron/hls-lfcd2
