@@ -1,6 +1,0 @@
-# Copyright (c) 2023 CATIE
-# SPDX-License-Identifier: Apache-2.0
-
-if SENSOR
-rsource "hls-lfcd2/Kconfig"
-endif
