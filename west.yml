@@ -27,3 +27,7 @@ manifest:
       remote: catie-6tron
       revision: master
       path: 6tron/hls-lfcd2
+    - name: zephyr_zest-core-stm32l4a6rg
+      remote: catie-6tron
+      revision: 2-package-as-zephyr-module
+      path: 6tron/zest-core-stm32l4a6rg
