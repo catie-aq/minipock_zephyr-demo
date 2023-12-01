@@ -49,57 +49,96 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 // UART
 static const struct device *const uart_dev = DEVICE_DT_GET(DT_ALIAS(rbdc_serial_port));
 
-void publish_odometry_message(const uint8_t *data, size_t length)
+// RX UART Odom message
+static char rx_buf[odom_size];
+static int rx_buf_pos;
+
+K_MSGQ_DEFINE(uart_msgq, odom_size, 10, 4);
+
+// Save timestamp of last message
+static uint64_t last_msg_timestamp;
+static uint64_t ros_timestamp;
+
+void process_odometry_msg()
 {
-    pb_istream_t stream = pb_istream_from_buffer(data, length);
+    static char data[odom_size];
 
-    odom msg = odom_init_zero;
+    while (k_msgq_get(&uart_msgq, &data, K_FOREVER) == 0) {
+        // while (1) {
+        gpio_pin_toggle_dt(&led);
 
-    if (!pb_decode(&stream, odom_fields, &msg)) {
-        return;
-    }
+        pb_istream_t stream = pb_istream_from_buffer(data, odom_size);
 
-    // Convert x, y, theta to quaternion
-    float q0 = cos((float)msg.theta / 2);
-    float q1 = 0;
-    float q2 = 0;
-    float q3 = sin((float)msg.theta / 2);
+        odom msg = odom_init_zero;
 
-    // Convert to ROS message
-    nav_msgs__msg__Odometry odometry_msg;
+        if (!pb_decode(&stream, odom_fields, &msg)) {
+            continue;
+        }
 
-    odometry_msg.pose.pose.position.x = (float)msg.x;
-    odometry_msg.pose.pose.position.y = (float)msg.y;
-    odometry_msg.pose.pose.position.z = 0;
+        // Convert x, y, theta to quaternion
+        float q0 = cos((float)msg.theta / 2);
+        float q1 = 0;
+        float q2 = 0;
+        float q3 = sin((float)msg.theta / 2);
 
-    odometry_msg.pose.pose.orientation.x = q0;
-    odometry_msg.pose.pose.orientation.y = q1;
-    odometry_msg.pose.pose.orientation.z = q2;
-    odometry_msg.pose.pose.orientation.w = q3;
+        // Convert to ROS message
+        nav_msgs__msg__Odometry odometry_msg;
 
-    // Publish message
-    if (!rcl_publish(&publisher, &odometry_msg, NULL)) {
-        return;
+        odometry_msg.header.frame_id.data = "odom";
+        odometry_msg.child_frame_id.data = "base_link";
+
+        odometry_msg.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
+        odometry_msg.header.stamp.nanosec
+                = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
+
+        odometry_msg.pose.pose.position.x = (float)msg.x;
+        odometry_msg.pose.pose.position.y = (float)msg.y;
+        odometry_msg.pose.pose.position.z = 0;
+
+        odometry_msg.pose.pose.orientation.x = q0;
+        odometry_msg.pose.pose.orientation.y = q1;
+        odometry_msg.pose.pose.orientation.z = q2;
+        odometry_msg.pose.pose.orientation.w = q3;
+
+        odometry_msg.twist.twist.linear.x = 0;
+        odometry_msg.twist.twist.linear.y = 0;
+        odometry_msg.twist.twist.linear.z = 0;
+
+        odometry_msg.twist.twist.angular.x = 0;
+        odometry_msg.twist.twist.angular.y = 0;
+        odometry_msg.twist.twist.angular.z = 0;
+
+        // Set covariance to 0
+        for (int i = 0; i < 36; i++) {
+            odometry_msg.pose.covariance[i] = 0;
+            odometry_msg.twist.covariance[i] = 0;
+        }
+
+        // Publish message
+        rcl_publish(&publisher, &odometry_msg, NULL);
     }
 }
 
-void uart_callback_handler(const struct device *dev, struct uart_event *evt, void *user_data)
+void uart_callback_handler(const struct device *dev, void *user_data)
 {
-    uint8_t buffer[128];
-    size_t length = 0;
-
     while (uart_irq_update(dev) && uart_irq_is_pending(dev)) {
-        if (uart_irq_rx_ready(dev)) {
-            length = uart_fifo_read(dev, buffer, sizeof(buffer));
+
+        if (k_uptime_get() - last_msg_timestamp > 10) {
+
+            rx_buf_pos = 0;
+            k_msgq_put(&uart_msgq, rx_buf, K_NO_WAIT);
         }
 
-        publish_odometry_message(buffer, length);
+        if (uart_irq_rx_ready(dev)) {
+            int length = uart_fifo_read(dev, &rx_buf[rx_buf_pos], 1);
+            rx_buf_pos += length;
+            last_msg_timestamp = k_uptime_get();
+        }
     }
 }
 
 void subscription_callback(const void *msgin)
 {
-    gpio_pin_toggle_dt(&led);
 
     const geometry_msgs__msg__Twist *uros_msg = (const geometry_msgs__msg__Twist *)msgin;
 
@@ -117,6 +156,12 @@ void subscription_callback(const void *msgin)
 
     if (!pb_encode(&stream, cmd_vel_fields, &msg)) {
         return;
+    }
+
+    // If the length is still 0, manually add a dummy field
+    if (stream.bytes_written == 0) {
+        buffer[0] = 0x00; // Add a dummy byte
+        stream.bytes_written = 1;
     }
 
     for (int i = 0; i < stream.bytes_written; i++) {
@@ -185,10 +230,29 @@ int main()
     RCCHECK(rclc_executor_add_subscription(
             &executor, &subscriber, &msg, &subscription_callback, ON_NEW_DATA));
 
-    rclc_executor_spin(&executor);
+    // Synchronize time
+    RCCHECK(rmw_uros_sync_session(1000));
+    ros_timestamp = rmw_uros_epoch_millis();
 
     // Set UART callback
-    uart_callback_set(uart_dev, uart_callback_handler, NULL);
+    ret = uart_irq_callback_set(uart_dev, uart_callback_handler);
+
+    if (ret < 0) {
+        if (ret == -ENOTSUP) {
+            printk("Interrupt-driven UART API support not enabled\n");
+        } else if (ret == -ENOSYS) {
+            printk("UART device does not support interrupt-driven API\n");
+        } else {
+            printk("Error setting UART callback: %d\n", ret);
+        }
+        return 0;
+    }
+
+    // Enble UART RX interrupts
+    uart_irq_rx_enable(uart_dev);
+    uart_irq_tx_disable(uart_dev);
+
+    rclc_executor_spin(&executor);
 
     while (1) {
         rclc_executor_spin_some(&executor, 100);
@@ -198,3 +262,5 @@ int main()
     RCCHECK(rcl_subscription_fini(&subscriber, &node));
     RCCHECK(rcl_node_fini(&node));
 }
+
+K_THREAD_DEFINE(uart_rx_thread, 1024, process_odometry_msg, NULL, NULL, NULL, 5, 0, 0);
