@@ -99,10 +99,9 @@ void uart_callback_handler(const struct device *dev, struct uart_event *evt, voi
 
 void subscription_callback(const void *msgin)
 {
-    const geometry_msgs__msg__Twist *uros_msg = (const geometry_msgs__msg__Twist *)msgin;
-
-    // Toggle LED0
     gpio_pin_toggle_dt(&led);
+
+    const geometry_msgs__msg__Twist *uros_msg = (const geometry_msgs__msg__Twist *)msgin;
 
     cmd_vel msg = cmd_vel_init_zero;
     msg.linear_x = (float)uros_msg->linear.x;
@@ -116,11 +115,13 @@ void subscription_callback(const void *msgin)
 
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
-    if (!pb_encode(&stream, cmd_vel_fields, &cmd_vel_msg)) {
+    if (!pb_encode(&stream, cmd_vel_fields, &msg)) {
         return;
     }
 
-    uart_tx(uart_dev, buffer, stream.bytes_written, SYS_FOREVER_MS);
+    for (int i = 0; i < stream.bytes_written; i++) {
+        uart_poll_out(uart_dev, buffer[i]);
+    }
 }
 
 int main()
@@ -137,6 +138,12 @@ int main()
         return 0;
     }
 
+    // Init UART
+    if (!device_is_ready(uart_dev)) {
+        printk("UART device not found!");
+        return 0;
+    }
+
     // Init micro-ROS
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)DEVICE_DT_GET(DT_ALIAS(uros_serial_port)),
@@ -144,6 +151,11 @@ int main()
             zephyr_transport_close,
             zephyr_transport_write,
             zephyr_transport_read);
+
+    while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
+        printk("Waiting for agent...\n");
+        k_sleep(K_SECONDS(1)); // Sleep for 1 second
+    }
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
     rclc_support_t support;
