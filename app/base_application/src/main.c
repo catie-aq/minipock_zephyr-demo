@@ -64,7 +64,6 @@ void process_odometry_msg()
     static char data[odom_size];
 
     while (k_msgq_get(&uart_msgq, &data, K_FOREVER) == 0) {
-        // while (1) {
         gpio_pin_toggle_dt(&led);
 
         pb_istream_t stream = pb_istream_from_buffer(data, odom_size);
@@ -76,13 +75,20 @@ void process_odometry_msg()
         }
 
         // Convert x, y, theta to quaternion
-        float q0 = cos((float)msg.theta / 2);
-        float q1 = 0;
-        float q2 = 0;
-        float q3 = sin((float)msg.theta / 2);
+        float cy = cos((float)msg.theta * 0.5);
+        float sy = sin((float)msg.theta * 0.5);
+        float cp = cos(0.0 * 0.5);
+        float sp = sin(0.0 * 0.5);
+        float cr = cos(0.0 * 0.5);
+        float sr = sin(0.0 * 0.5);
+
+        float q0 = cy * cp * cr + sy * sp * sr;
+        float q1 = cy * cp * sr - sy * sp * cr;
+        float q2 = sy * cp * sr + cy * sp * cr;
+        float q3 = sy * cp * cr - cy * sp * sr;
 
         // Convert to ROS message
-        nav_msgs__msg__Odometry odometry_msg;
+        static nav_msgs__msg__Odometry odometry_msg;
 
         odometry_msg.header.frame_id.data = "odom";
         odometry_msg.child_frame_id.data = "base_link";
@@ -95,10 +101,10 @@ void process_odometry_msg()
         odometry_msg.pose.pose.position.y = (float)msg.y;
         odometry_msg.pose.pose.position.z = 0;
 
-        odometry_msg.pose.pose.orientation.x = q0;
-        odometry_msg.pose.pose.orientation.y = q1;
-        odometry_msg.pose.pose.orientation.z = q2;
-        odometry_msg.pose.pose.orientation.w = q3;
+        odometry_msg.pose.pose.orientation.w = q0;
+        odometry_msg.pose.pose.orientation.x = q1;
+        odometry_msg.pose.pose.orientation.y = q2;
+        odometry_msg.pose.pose.orientation.z = q3;
 
         odometry_msg.twist.twist.linear.x = 0;
         odometry_msg.twist.twist.linear.y = 0;
