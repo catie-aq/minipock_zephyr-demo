@@ -6,6 +6,8 @@
 };
 
 &usart3 {
+    tx-rx-swap;
+    current-speed = <460800>;
     status = "okay";
 };
 
