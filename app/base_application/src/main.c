@@ -38,7 +38,7 @@
     }
 
 rcl_subscription_t subscriber;
-rcl_publisher_t publisher;
+rcl_publisher_t odom_publisher;
 
 geometry_msgs__msg__Twist msg;
 
@@ -120,8 +120,9 @@ void process_odometry_msg()
             odometry_msg.twist.covariance[i] = 0;
         }
 
-        // Publish message
-        rcl_publish(&publisher, &odometry_msg, NULL);
+        if (rcl_publish(&odom_publisher, &odometry_msg, NULL) != RCL_RET_OK) {
+            printf("Failed to publish odometry message\n");
+        }
     }
 }
 
@@ -226,9 +227,9 @@ int main()
     RCCHECK(rclc_subscription_init_default(
             &subscriber, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist), "cmd_vel"));
 
-    // Create publisher
-    RCCHECK(rclc_publisher_init_default(
-            &publisher, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Odometry), "odom"));
+    // Create odometry publisher
+    RCCHECK(rclc_publisher_init_best_effort(
+            &odom_publisher, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Odometry), "odom"));
 
     // create executor
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
