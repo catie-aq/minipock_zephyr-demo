@@ -22,7 +22,7 @@ west update
 
 - Compile the project
 ```bash
-west build -b zest_core_stm32l4a6rg app/<project> -- -DBOARD_ROOT=path/to/board
+west build -b zest_core_stm32l4a6rg app/<project>
 ```
 
 - Program the target device
