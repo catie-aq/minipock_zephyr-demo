@@ -1,8 +1,14 @@
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/kernel.h>
+
 #include <rcl/error_handling.h>
 #include <rcl/rcl.h>
 #include <rclc/executor.h>
 #include <rclc/rclc.h>
 #include <rmw_microros/rmw_microros.h>
+
+#include <microros_transports.h>
 
 #include <geometry_msgs/msg/twist.h>
 #include <nav_msgs/msg/odometry.h>
@@ -10,12 +16,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
-
-#include <microros_transports.h>
-#include <rmw_microros/rmw_microros.h>
-
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/uart.h>
 
 #include "pb_decode.h"
 #include "pb_encode.h"
@@ -37,10 +37,9 @@
         }                                                                                          \
     }
 
-rcl_subscription_t subscriber;
 rcl_publisher_t odom_publisher;
-
-geometry_msgs__msg__Twist msg;
+rcl_subscription_t odom_subscriber;
+geometry_msgs__msg__Twist cmd_vel_twist_msg;
 
 // LED0
 #define LED0_NODE DT_ALIAS(led0)
@@ -49,7 +48,7 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 // UART
 static const struct device *const uart_dev = DEVICE_DT_GET(DT_ALIAS(rbdc_serial_port));
 
-// RX UART Odom message
+// RX UART buffer for odom message
 static char rx_buf[odom_size];
 static int rx_buf_pos;
 
@@ -131,7 +130,6 @@ void uart_callback_handler(const struct device *dev, void *user_data)
     while (uart_irq_update(dev) && uart_irq_is_pending(dev)) {
 
         if (k_uptime_get() - last_msg_timestamp > 10) {
-
             rx_buf_pos = 0;
             k_msgq_put(&uart_msgq, rx_buf, K_NO_WAIT);
         }
@@ -216,26 +214,28 @@ int main()
     RCCHECK(rcl_init_options_init(&init_options, allocator));
     RCCHECK(rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID));
 
-    // create init_options
+    // Initialize micro-ROS with options
     RCCHECK(rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator));
 
-    // create node
+    // Create node
     rcl_node_t node;
     RCCHECK(rclc_node_init_default(&node, "zephyr", "", &support));
 
-    // create subscriber
-    RCCHECK(rclc_subscription_init_default(
-            &subscriber, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist), "cmd_vel"));
+    // Create cmd vel subscriber
+    RCCHECK(rclc_subscription_init_default(&odom_subscriber,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
+            "cmd_vel"));
 
     // Create odometry publisher
     RCCHECK(rclc_publisher_init_best_effort(
             &odom_publisher, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Odometry), "odom"));
 
-    // create executor
+    // Create executor
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
     RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
     RCCHECK(rclc_executor_add_subscription(
-            &executor, &subscriber, &msg, &subscription_callback, ON_NEW_DATA));
+            &executor, &odom_subscriber, &cmd_vel_twist_msg, &subscription_callback, ON_NEW_DATA));
 
     // Synchronize time
     RCCHECK(rmw_uros_sync_session(1000));
@@ -255,19 +255,11 @@ int main()
         return 0;
     }
 
-    // Enble UART RX interrupts
+    // Enable UART RX interrupt
     uart_irq_rx_enable(uart_dev);
     uart_irq_tx_disable(uart_dev);
 
     rclc_executor_spin(&executor);
-
-    while (1) {
-        rclc_executor_spin_some(&executor, 100);
-        usleep(100000);
-    }
-
-    RCCHECK(rcl_subscription_fini(&subscriber, &node));
-    RCCHECK(rcl_node_fini(&node));
 }
 
 K_THREAD_DEFINE(uart_rx_thread, 1024, process_odometry_msg, NULL, NULL, NULL, 5, 0, 0);
