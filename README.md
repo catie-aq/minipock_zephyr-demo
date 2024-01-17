@@ -1,6 +1,8 @@
 ![banner](imgs/MiniPock_banner_dark_theme.png#gh-dark-mode-only)
 ![banner](imgs/MiniPock_banner_light_theme.png#gh-light-mode-only)
 
+[![Zephyr Application CI/CD](https://github.com/catie-aq/minipock_zephyr-workspace/actions/workflows/zephyr_application.yaml/badge.svg)](https://github.com/catie-aq/minipock_zephyr-workspace/actions/workflows/zephyr_application.yaml)
+
 # MiniPock Firmware
 
 This repository contains the firmware based on Zephyr OS for the MiniPock.
