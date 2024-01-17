@@ -1,0 +1,8 @@
+name: "Zephyr Application CI/CD"
+
+on:
+  push:
+
+jobs:
+  zephyr-application:
+    uses: catie-aq/zephyr_workflows/.github/workflows/application.yml@main
