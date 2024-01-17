@@ -8,4 +8,3 @@ jobs:
     with:
       application: "app/base_application"
       board: "zest_core_stm32l4a6rg"
-
