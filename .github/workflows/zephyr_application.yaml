@@ -5,3 +5,5 @@ on: [ push, workflow_dispatch ]
 jobs:
   zephyr-application:
     uses: catie-aq/zephyr_workflows/.github/workflows/application.yml@main
+    with:
+      application: "app/base_application"
