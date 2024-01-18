@@ -9,6 +9,7 @@ jobs:
       application: "app/base_application"
       board: "zest_core_stm32l4a6rg"
       extra_cmd: "pip3 install catkin_pkg lark-parser empy colcon-common-extensions"
+      container: "zephyrprojectrtos/ci:v0.26.2"
 
     secrets:
       personal_access_token: ${{ secrets.PAT }}
