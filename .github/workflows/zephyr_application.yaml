@@ -1,4 +1,4 @@
-name: "Zephyr Application CI/CD"
+name: "Zephyr Applications CI/CD"
 
 on:
   push:
