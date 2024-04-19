@@ -7,12 +7,10 @@ list(APPEND ZEPHYR_EXTRA_MODULES ${CMAKE_CURRENT_SOURCE_DIR}/../../../modules/mi
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(base_application)
 
-set(NANOPB_OPTIONS "-I${CMAKE_SOURCE_DIR}")
-nanopb_generate_cpp(proto_sources proto_headers RELPATH .
-    src/minipock.proto
-)
-# we need to be able to include protobuf generated header files
-zephyr_library_include_directories(${CMAKE_CURRENT_BINARY_DIR})
+list(APPEND CMAKE_MODULE_PATH ${ZEPHYR_BASE}/modules/nanopb)
+include(nanopb)
+
+zephyr_nanopb_sources(app src/minipock.proto)
 
 add_subdirectory(drivers)
 
