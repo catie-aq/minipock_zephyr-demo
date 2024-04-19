@@ -12,7 +12,7 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: v3.4.0
+      revision: v3.5.0
       import:
         name-allowlist:
           - cmsis
@@ -27,7 +27,12 @@ manifest:
       remote: catie-6tron
       revision: master
       path: 6tron/hls-lfcd2
-    - name: zephyr_zest-core-stm32l4a6rg
+    - name: 6tron-manifest
       remote: catie-6tron
-      revision: master
-      path: 6tron/zest-core-stm32l4a6rg
+      repo-path: zephyr_6tron-manifest
+      revision: v3.5.0+202402
+      path: 6tron/6tron-manifest
+      import:
+        name-allowlist:
+          - 6tron-connector
+          - zest-core-stm32l4a6rg
