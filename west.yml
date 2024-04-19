@@ -10,7 +10,7 @@ manifest:
     - name: catie-6tron
       url-base: https://github.com/catie-aq
 
-  group-filter: [+nanopb]
+  group-filter: [+optional]
 
   projects:
     - name: zephyr
