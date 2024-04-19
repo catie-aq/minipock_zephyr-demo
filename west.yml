@@ -9,6 +9,9 @@ manifest:
       url-base: https://github.com/micro-ROS
     - name: catie-6tron
       url-base: https://github.com/catie-aq
+
+  group-filter: [+nanopb]
+
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
