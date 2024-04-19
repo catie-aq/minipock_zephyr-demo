@@ -1,10 +1,13 @@
-name: "Zephyr Applications CI/CD"
+name: "Build"
 
 on:
   push:
     paths-ignore:
       - 'README.md'
   workflow_dispatch:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
 
 jobs:
   zephyr-application:
