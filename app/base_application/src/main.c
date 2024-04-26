@@ -19,6 +19,10 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <zephyr/net/net_event.h>
+#include <zephyr/net/net_if.h>
+#include <zephyr/net/wifi_mgmt.h>
+
 #include "pb_decode.h"
 #include "pb_encode.h"
 #include "src/minipock.pb.h"
@@ -61,6 +65,9 @@ K_MSGQ_DEFINE(uart_msgq, odom_size, 10, 4);
 static uint64_t last_msg_timestamp;
 static uint64_t ros_timestamp;
 
+// Wireless management
+static struct net_mgmt_event_callback wifi_shell_mgmt_cb;
+
 // Network
 #define DHCP_OPTION_NTP (42)
 static uint8_t ntp_server[4];
@@ -91,6 +98,38 @@ int lidar_msg_index = 0;
 static const struct device *sensor;
 
 K_MSGQ_DEFINE(lidar_msgq, sizeof(struct lidar_data), 20, 4);
+
+static void wifi_mgmt_event_handler(
+        struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
+{
+    if (NET_EVENT_IPV4_ADDR_ADD == mgmt_event) {
+        printk("DHCP Connected\n");
+        for (int i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
+            char buf[NET_IPV4_ADDR_LEN];
+
+            if (iface->config.ip.ipv4->unicast[i].addr_type != NET_ADDR_DHCP) {
+                continue;
+            }
+
+            printk("   Address[%d]: %s",
+                    net_if_get_by_iface(iface),
+                    net_addr_ntop(AF_INET,
+                            &iface->config.ip.ipv4->unicast[i].address.in_addr,
+                            buf,
+                            sizeof(buf)));
+            printk("    Subnet[%d]: %s",
+                    net_if_get_by_iface(iface),
+                    net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
+            printk("    Router[%d]: %s",
+                    net_if_get_by_iface(iface),
+                    net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
+            printk("Lease time[%d]: %u seconds",
+                    net_if_get_by_iface(iface),
+                    iface->config.dhcpv4.lease_time);
+        }
+        connected = 1;
+    }
+}
 
 void process_odometry_msg()
 {
@@ -201,40 +240,41 @@ static void start_dhcpv4_client(struct net_if *iface, void *user_data)
     net_dhcpv4_start(iface);
 }
 
-static void handler(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
-{
-    int i = 0;
+// static void handler(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if
+// *iface)
+// {
+//     int i = 0;
 
-    if (mgmt_event != NET_EVENT_IPV4_ADDR_ADD) {
-        return;
-    }
+//     if (mgmt_event != NET_EVENT_IPV4_ADDR_ADD) {
+//         return;
+//     }
 
-    for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
-        char buf[NET_IPV4_ADDR_LEN];
+//     for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
+//         char buf[NET_IPV4_ADDR_LEN];
 
-        if (iface->config.ip.ipv4->unicast[i].addr_type != NET_ADDR_DHCP) {
-            continue;
-        }
+//         if (iface->config.ip.ipv4->unicast[i].addr_type != NET_ADDR_DHCP) {
+//             continue;
+//         }
 
-        printk("   Address[%d]: %s",
-                net_if_get_by_iface(iface),
-                net_addr_ntop(AF_INET,
-                        &iface->config.ip.ipv4->unicast[i].address.in_addr,
-                        buf,
-                        sizeof(buf)));
-        printk("    Subnet[%d]: %s",
-                net_if_get_by_iface(iface),
-                net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
-        printk("    Router[%d]: %s",
-                net_if_get_by_iface(iface),
-                net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
-        printk("Lease time[%d]: %u seconds",
-                net_if_get_by_iface(iface),
-                iface->config.dhcpv4.lease_time);
-    }
+//         printk("   Address[%d]: %s",
+//                 net_if_get_by_iface(iface),
+//                 net_addr_ntop(AF_INET,
+//                         &iface->config.ip.ipv4->unicast[i].address.in_addr,
+//                         buf,
+//                         sizeof(buf)));
+//         printk("    Subnet[%d]: %s",
+//                 net_if_get_by_iface(iface),
+//                 net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
+//         printk("    Router[%d]: %s",
+//                 net_if_get_by_iface(iface),
+//                 net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
+//         printk("Lease time[%d]: %u seconds",
+//                 net_if_get_by_iface(iface),
+//                 iface->config.dhcpv4.lease_time);
+//     }
 
-    connected = 1;
-}
+//     connected = 1;
+// }
 
 static void option_handler(struct net_dhcpv4_option_callback *cb,
         size_t length,
@@ -246,93 +286,93 @@ static void option_handler(struct net_dhcpv4_option_callback *cb,
     printk("DHCP Option %d: %s", cb->option, net_addr_ntop(AF_INET, cb->data, buf, sizeof(buf)));
 }
 
-void send_lidar_data(void *, void *, void *)
-{
-    static float range_to_send[NB_POINTS];
-    static float intensity_to_send[NB_POINTS];
+// void send_lidar_data(void *, void *, void *)
+// {
+//     static float range_to_send[NB_POINTS];
+//     static float intensity_to_send[NB_POINTS];
 
-    struct lidar_data lidar_data;
+//     struct lidar_data lidar_data;
 
-    static sensor_msgs__msg__LaserScan scan;
+//     static sensor_msgs__msg__LaserScan scan;
 
-    while (true) {
-        k_msgq_get(&lidar_msgq, &lidar_data, K_FOREVER);
+//     while (true) {
+//         k_msgq_get(&lidar_msgq, &lidar_data, K_FOREVER);
 
-        lidar_msg[lidar_msg_index] = lidar_data;
-        lidar_msg_index++;
+//         lidar_msg[lidar_msg_index] = lidar_data;
+//         lidar_msg_index++;
 
-        if (lidar_msg_index >= NB_MSG) {
-            lidar_msg_index = 0;
+//         if (lidar_msg_index >= NB_MSG) {
+//             lidar_msg_index = 0;
 
-            for (int i = 0; i < NB_MSG; i++) {
-                for (int j = 0; j < NB_POINTS_PER_MSG; j++) {
-                    range_to_send[i * NB_POINTS_PER_MSG + j] = lidar_msg[i].ranges[j];
-                    intensity_to_send[i * NB_POINTS_PER_MSG + j] = lidar_msg[i].intensities[j];
-                }
-            }
+//             for (int i = 0; i < NB_MSG; i++) {
+//                 for (int j = 0; j < NB_POINTS_PER_MSG; j++) {
+//                     range_to_send[i * NB_POINTS_PER_MSG + j] = lidar_msg[i].ranges[j];
+//                     intensity_to_send[i * NB_POINTS_PER_MSG + j] = lidar_msg[i].intensities[j];
+//                 }
+//             }
 
-            scan.header.frame_id.data = "lds_01_link";
-            scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
-            scan.header.stamp.nanosec
-                    = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
+//             scan.header.frame_id.data = "lds_01_link";
+//             scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
+//             scan.header.stamp.nanosec
+//                     = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
 
-            float angle_increment = 0;
-            if (lidar_msg[0].start_angle > lidar_msg[NB_MSG - 1].end_angle) {
-                angle_increment
-                        = (6.28 - lidar_msg[0].start_angle + lidar_msg[NB_MSG - 1].end_angle)
-                        / (float)NB_POINTS;
-            } else {
-                angle_increment = (lidar_msg[NB_MSG - 1].end_angle - lidar_msg[0].start_angle)
-                        / (float)NB_POINTS;
-            }
+//             float angle_increment = 0;
+//             if (lidar_msg[0].start_angle > lidar_msg[NB_MSG - 1].end_angle) {
+//                 angle_increment
+//                         = (6.28 - lidar_msg[0].start_angle + lidar_msg[NB_MSG - 1].end_angle)
+//                         / (float)NB_POINTS;
+//             } else {
+//                 angle_increment = (lidar_msg[NB_MSG - 1].end_angle - lidar_msg[0].start_angle)
+//                         / (float)NB_POINTS;
+//             }
 
-            scan.angle_increment = angle_increment;
-            scan.time_increment = 0;
-            scan.scan_time = 0.1;
-            scan.range_min = 0.02;
-            scan.range_max = 12;
+//             scan.angle_increment = angle_increment;
+//             scan.time_increment = 0;
+//             scan.scan_time = 0.1;
+//             scan.range_min = 0.02;
+//             scan.range_max = 12;
 
-            scan.ranges.data = range_to_send;
-            scan.intensities.data = intensity_to_send;
-            scan.ranges.size = NB_POINTS;
-            scan.intensities.size = NB_POINTS;
+//             scan.ranges.data = range_to_send;
+//             scan.intensities.data = intensity_to_send;
+//             scan.ranges.size = NB_POINTS;
+//             scan.intensities.size = NB_POINTS;
 
-            scan.angle_min = lidar_msg[0].start_angle;
-            scan.angle_max = lidar_msg[NB_MSG - 1].end_angle;
+//             scan.angle_min = lidar_msg[0].start_angle;
+//             scan.angle_max = lidar_msg[NB_MSG - 1].end_angle;
 
-            if (agent_connected) {
-                // blink LED
-                gpio_pin_toggle_dt(&led);
-                int ret = rcl_publish(&scan_publisher, &scan, NULL);
-                if (ret != RCL_RET_OK) {
-                    printk("Failed to publish message\n");
-                }
-            }
-        }
-    }
-}
+//             if (agent_connected) {
+//                 // blink LED
+//                 gpio_pin_toggle_dt(&led);
+//                 int ret = rcl_publish(&scan_publisher, &scan, NULL);
+//                 if (ret != RCL_RET_OK) {
+//                     printk("Failed to publish message\n");
+//                 }
+//             }
+//         }
+//     }
+// }
 
-static void trigger_handler(const struct device *dev, const struct sensor_trigger *trigger)
-{
-    struct sensor_value val[15];
+// static void trigger_handler(const struct device *dev, const struct sensor_trigger *trigger)
+// {
+//     struct sensor_value val[15];
 
-    struct lidar_data lidar_data;
+//     struct lidar_data lidar_data;
 
-    sensor_channel_get(sensor, SENSOR_CHAN_DISTANCE, val);
+//     sensor_channel_get(sensor, SENSOR_CHAN_DISTANCE, val);
 
-    lidar_data.start_angle = val[1].val1 / 100 * 3.14 / 180;
-    lidar_data.end_angle = val[1].val2 / 100 * 3.14 / 180;
+//     lidar_data.start_angle = val[1].val1 / 100 * 3.14 / 180;
+//     lidar_data.end_angle = val[1].val2 / 100 * 3.14 / 180;
 
-    for (int i = 0; i < NB_POINTS_PER_MSG; i++) {
-        lidar_data.ranges[i] = (float)val[i + 2].val1 / 100.;
-        lidar_data.intensities[i] = (float)val[i + 2].val2 / 100.;
-    }
+//     for (int i = 0; i < NB_POINTS_PER_MSG; i++) {
+//         lidar_data.ranges[i] = (float)val[i + 2].val1 / 100.;
+//         lidar_data.intensities[i] = (float)val[i + 2].val2 / 100.;
+//     }
 
-    while (k_msgq_put(&lidar_msgq, &lidar_data, K_NO_WAIT) != 0) {
-        printk("Failed to put data in queue\n");
-        k_msgq_purge(&lidar_msgq);
-    }
-}
+//     while (k_msgq_put(&lidar_msgq, &lidar_data, K_NO_WAIT) != 0) {
+//         printk("Failed to put data in queue\n");
+//         k_msgq_purge(&lidar_msgq);
+//     }
+// }
 
 #define STACKSIZE 8162
 K_THREAD_STACK_DEFINE(thread_stack, STACKSIZE);
@@ -353,18 +393,18 @@ int main()
     }
 
     // Initialize LiDAR
-    sensor = DEVICE_DT_GET(DT_NODELABEL(lidar0));
-    if (!device_is_ready(sensor)) {
-        printk("Sensor not ready\n");
-        return 0;
-    }
+    // sensor = DEVICE_DT_GET(DT_NODELABEL(lidar0));
+    // if (!device_is_ready(sensor)) {
+    //     printk("Sensor not ready\n");
+    //     return 0;
+    // }
 
-    static struct sensor_trigger trig = {
-        .type = SENSOR_TRIG_DATA_READY,
-        .chan = SENSOR_CHAN_DISTANCE,
-    };
+    // static struct sensor_trigger trig = {
+    //     .type = SENSOR_TRIG_DATA_READY,
+    //     .chan = SENSOR_CHAN_DISTANCE,
+    // };
 
-    sensor_trigger_set(sensor, &trig, trigger_handler);
+    // sensor_trigger_set(sensor, &trig, trigger_handler);
 
     // Init UART
     if (!device_is_ready(uart_dev)) {
@@ -382,18 +422,38 @@ int main()
             zephyr_transport_write,
             zephyr_transport_read);
 
-    net_mgmt_init_event_callback(&mgmt_cb, handler, NET_EVENT_IPV4_ADDR_ADD);
-    net_mgmt_add_event_callback(&mgmt_cb);
+    // ------ Wifi Configuration ------
+    net_mgmt_init_event_callback(
+            &wifi_shell_mgmt_cb, wifi_mgmt_event_handler, NET_EVENT_IPV4_ADDR_ADD);
 
-    net_dhcpv4_init_option_callback(
-            &dhcp_cb, option_handler, DHCP_OPTION_NTP, ntp_server, sizeof(ntp_server));
+    net_mgmt_add_event_callback(&wifi_shell_mgmt_cb);
 
-    net_dhcpv4_add_option_callback(&dhcp_cb);
+    static struct wifi_connect_req_params wifi_args;
 
-    net_if_foreach(start_dhcpv4_client, NULL);
+    wifi_args.security = WIFI_SECURITY_TYPE_PSK;
+    wifi_args.channel = WIFI_CHANNEL_ANY;
+    wifi_args.psk = "CATIERobotics";
+    wifi_args.psk_length = strlen(wifi_args.psk);
+    wifi_args.ssid = "NETGEAR27";
+    wifi_args.ssid_length = strlen(wifi_args.ssid);
+
+    struct net_if *iface = net_if_get_default();
+
+    if (!iface) {
+        printf("No default network interface\n");
+    }
+
+    if (net_mgmt(NET_REQUEST_WIFI_CONNECT,
+                iface,
+                &wifi_args,
+                sizeof(struct wifi_connect_req_params))) {
+        printf("Connection request failed\n");
+    } else {
+        printf("Connection requested\n");
+    }
 
     while (!connected) {
-        // printf("Waiting for connection\n");
+        // 	// printf("Waiting for connection\n");
         usleep(10000);
     }
     printf("Connection OK\n");
@@ -472,17 +532,19 @@ int main()
     uart_irq_rx_enable(uart_dev);
     uart_irq_tx_disable(uart_dev);
 
-    int priority = 5;
-    k_thread_create(&thread_data,
-            thread_stack,
-            K_THREAD_STACK_SIZEOF(thread_stack),
-            send_lidar_data,
-            NULL,
-            NULL,
-            NULL,
-            priority,
-            0,
-            K_NO_WAIT);
+    // int priority = 5;
+    // k_thread_create(&thread_data,
+    //         thread_stack,
+    //         K_THREAD_STACK_SIZEOF(thread_stack),
+    //         send_lidar_data,
+    //         NULL,
+    //         NULL,
+    //         NULL,
+    //         priority,
+    //         0,
+    //         K_NO_WAIT);
+
+    // k_sleep(K_FOREVER);
 
     // Start micro-ROS thread
     while (1) {
