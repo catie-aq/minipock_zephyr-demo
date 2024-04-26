@@ -432,9 +432,9 @@ int main()
 
     wifi_args.security = WIFI_SECURITY_TYPE_PSK;
     wifi_args.channel = WIFI_CHANNEL_ANY;
-    wifi_args.psk = "CATIERobotics";
+    wifi_args.psk = "";
     wifi_args.psk_length = strlen(wifi_args.psk);
-    wifi_args.ssid = "NETGEAR27";
+    wifi_args.ssid = "";
     wifi_args.ssid_length = strlen(wifi_args.ssid);
 
     struct net_if *iface = net_if_get_default();
@@ -453,7 +453,7 @@ int main()
     }
 
     while (!connected) {
-        // 	// printf("Waiting for connection\n");
+        // printf("Waiting for connection\n");
         usleep(10000);
     }
     printf("Connection OK\n");
