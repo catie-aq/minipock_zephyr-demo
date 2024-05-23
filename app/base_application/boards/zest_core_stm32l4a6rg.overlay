@@ -18,7 +18,7 @@
 &uart5 {
 	pinctrl-0 = <&uart5_tx_pc12 &uart5_rx_pd2>;
 	pinctrl-names = "default";
-	current-speed = <115200>;
+	current-speed = <921600>;
 	status = "okay";
 
 	esp_wifi: esp-wifi {
