@@ -89,7 +89,6 @@ void process_odometry_msg()
         static geometry_msgs__msg__PoseStamped pose_stamped_msg;
 
         pose_stamped_msg.header.frame_id.data = "odom";
-        // odometry_msg.child_frame_id.data = "base_link";
 
         pose_stamped_msg.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
         pose_stamped_msg.header.stamp.nanosec
