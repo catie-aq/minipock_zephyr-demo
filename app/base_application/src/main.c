@@ -10,8 +10,8 @@
 
 #include <microros_transports.h>
 
+#include <geometry_msgs/msg/pose_stamped.h>
 #include <geometry_msgs/msg/twist.h>
-#include <nav_msgs/msg/odometry.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -63,7 +63,6 @@ void process_odometry_msg()
     static char data[odom_size];
 
     while (k_msgq_get(&uart_msgq, &data, K_FOREVER) == 0) {
-        gpio_pin_toggle_dt(&led);
 
         pb_istream_t stream = pb_istream_from_buffer(data, odom_size);
 
@@ -87,39 +86,25 @@ void process_odometry_msg()
         float q3 = sy * cp * cr - cy * sp * sr;
 
         // Convert to ROS message
-        static nav_msgs__msg__Odometry odometry_msg;
+        static geometry_msgs__msg__PoseStamped pose_stamped_msg;
 
-        odometry_msg.header.frame_id.data = "odom";
-        odometry_msg.child_frame_id.data = "base_link";
+        pose_stamped_msg.header.frame_id.data = "odom";
+        // odometry_msg.child_frame_id.data = "base_link";
 
-        odometry_msg.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
-        odometry_msg.header.stamp.nanosec
+        pose_stamped_msg.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
+        pose_stamped_msg.header.stamp.nanosec
                 = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
 
-        odometry_msg.pose.pose.position.x = (float)msg.x;
-        odometry_msg.pose.pose.position.y = (float)msg.y;
-        odometry_msg.pose.pose.position.z = 0;
+        pose_stamped_msg.pose.position.x = (float)msg.x;
+        pose_stamped_msg.pose.position.y = (float)msg.y;
+        pose_stamped_msg.pose.position.z = 0;
 
-        odometry_msg.pose.pose.orientation.w = q0;
-        odometry_msg.pose.pose.orientation.x = q1;
-        odometry_msg.pose.pose.orientation.y = q2;
-        odometry_msg.pose.pose.orientation.z = q3;
+        pose_stamped_msg.pose.orientation.w = q0;
+        pose_stamped_msg.pose.orientation.x = q1;
+        pose_stamped_msg.pose.orientation.y = q2;
+        pose_stamped_msg.pose.orientation.z = q3;
 
-        odometry_msg.twist.twist.linear.x = 0;
-        odometry_msg.twist.twist.linear.y = 0;
-        odometry_msg.twist.twist.linear.z = 0;
-
-        odometry_msg.twist.twist.angular.x = 0;
-        odometry_msg.twist.twist.angular.y = 0;
-        odometry_msg.twist.twist.angular.z = 0;
-
-        // Set covariance to 0
-        for (int i = 0; i < 36; i++) {
-            odometry_msg.pose.covariance[i] = 0;
-            odometry_msg.twist.covariance[i] = 0;
-        }
-
-        if (rcl_publish(&odom_publisher, &odometry_msg, NULL) != RCL_RET_OK) {
+        if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
             printf("Failed to publish odometry message\n");
         }
     }
@@ -228,8 +213,10 @@ int main()
             "cmd_vel"));
 
     // Create odometry publisher
-    RCCHECK(rclc_publisher_init_best_effort(
-            &odom_publisher, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Odometry), "odom"));
+    RCCHECK(rclc_publisher_init_best_effort(&odom_publisher,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseStamped),
+            "odom"));
 
     // Create executor
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
