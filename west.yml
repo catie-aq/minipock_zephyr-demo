@@ -39,3 +39,13 @@ manifest:
         name-allowlist:
           - 6tron-connector
           - zest-core-stm32l4a6rg
+    - name: zest-interface-ethernet
+      remote: catie-6tron
+      repo-path: zephyr_zest-interface-ethernet
+      revision: 765c0029818806c1d7101b8a83ae57036d80744f
+      path: 6tron/zest-interface-ethernet
+    - name: ldrobot-ld19
+      remote: catie-6tron
+      repo-path: zephyr_ldrobot-ld19
+      revision: main
+      path: 6tron/ldrobot-ld19
