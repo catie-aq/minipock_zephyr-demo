@@ -1,10 +1,9 @@
 &sixtron_uart {
-	current-speed = <115200>;
+	current-speed = <230400>;
 	status = "okay";
 
   lidar0: lidar_0 {
-		compatible = "hls,lfcd2";
-		pwms = <&pwm2 2 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+		compatible = "ldrobot,ld19";
 	};
 };
 
