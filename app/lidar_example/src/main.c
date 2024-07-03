@@ -139,7 +139,7 @@ static void option_handler(struct net_dhcpv4_option_callback *cb,
 static void timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
     // Toggles LED0
-    gpio_pin_toggle_dt(&led);
+    // gpio_pin_toggle_dt(&led);
 
     struct sensor_value val[15];
 
@@ -178,6 +178,61 @@ static void timer_callback(rcl_timer_t *timer, int64_t last_call_time)
     RCSOFTCHECK(rcl_publish(&scan_publisher, &scan, NULL));
 }
 
+static void trigger_handler(const struct device *dev, struct sensor_trigger *trigger)
+{
+    // Blink LED
+    struct sensor_value val[15];
+
+    static float ranges[120];
+    static float intensities[120];
+    static int index = 0;
+    static bool flag = false;
+
+    static sensor_msgs__msg__LaserScan scan;
+
+    sensor_channel_get(sensor, SENSOR_CHAN_DISTANCE, val);
+
+    // // printk("Start angle: %d, End angle: %d\n", val[1].val1, val[1].val2);
+
+    if (index >= 120) {
+        flag = false;
+        index = 0;
+
+        scan.header.frame_id.data = "lds_01_link";
+        scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
+        scan.header.stamp.nanosec = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
+
+        scan.angle_max = val[1].val2 / 100 * 3.14 / 180;
+
+        scan.angle_increment = 0.8 * 3.14 / 180;
+        scan.time_increment = 0.1 / 540;
+        scan.scan_time = 0.1;
+        scan.range_min = 0.02;
+        scan.range_max = 12;
+
+        scan.ranges.data = ranges;
+        scan.intensities.data = intensities;
+        scan.ranges.size = 120;
+        scan.intensities.size = 120;
+
+        // blink LED
+        gpio_pin_toggle_dt(&led);
+
+        rcl_publish(&scan_publisher, &scan, NULL);
+    } else {
+        if (!flag) {
+            scan.angle_min = val[1].val1 / 100 * 3.14 / 180;
+            flag = true;
+        }
+
+        for (int i = 0; i < 12; i++) {
+            ranges[index] = (float)val[i + 2].val1 / 100.;
+            intensities[index] = (float)val[i + 2].val2 / 100.;
+            index++;
+        }
+    }
+}
+
 int main()
 {
     int ret;
@@ -201,8 +256,15 @@ int main()
         return 0;
     }
 
+    static struct sensor_trigger trig = {
+        .type = SENSOR_TRIG_DATA_READY,
+        .chan = SENSOR_CHAN_DISTANCE,
+    };
+
+    sensor_trigger_set(sensor, &trig, trigger_handler);
+
     // Init micro-ROS
-    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.3", "8888" };
+    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.17", "8888" };
 
     // Init micro-ROS
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
@@ -259,13 +321,14 @@ int main()
 
     // create timer
     rcl_timer_t timer;
-    const unsigned int timer_timeout = 10;
-    RCCHECK(rclc_timer_init_default(&timer, &support, RCL_MS_TO_NS(timer_timeout), timer_callback));
+    // const unsigned int timer_timeout = 10;
+    // RCCHECK(rclc_timer_init_default(&timer, &support, RCL_MS_TO_NS(timer_timeout),
+    // timer_callback));
 
     // Create executor
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
     RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
-    RCCHECK(rclc_executor_add_timer(&executor, &timer));
+    // RCCHECK(rclc_executor_add_timer(&executor, &timer));
 
     // Synchronize time
     RCCHECK(rmw_uros_sync_session(1000));
