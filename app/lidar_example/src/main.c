@@ -52,6 +52,16 @@ static struct net_dhcpv4_option_callback dhcp_cb;
 
 static const struct device *sensor;
 
+static rclc_executor_t executor;
+
+#define STACKSIZE 8162
+K_THREAD_STACK_DEFINE(thread_stack, STACKSIZE);
+struct k_thread thread_data;
+
+void uros_transport_task();
+
+K_THREAD_DEFINE(uros_transport, 2048, uros_transport_task, NULL, NULL, NULL, 7, 0, 0);
+
 #define RCCHECK(fn)                                                                                \
     {                                                                                              \
         rcl_ret_t temp_rc = fn;                                                                    \
@@ -82,6 +92,17 @@ static uint64_t ros_timestamp;
 
 // Network management
 static bool connected = 0;
+static volatile bool agent_connected = false;
+
+// Struct contain ranges, intensities, start_angle, end_angle
+static struct lidar_data {
+    float ranges[12];
+    float intensities[12];
+    float start_angle;
+    float end_angle;
+};
+
+K_MSGQ_DEFINE(lidar_msgq, sizeof(struct lidar_data), 100, 4);
 
 static void start_dhcpv4_client(struct net_if *iface, void *user_data)
 {
@@ -136,101 +157,200 @@ static void option_handler(struct net_dhcpv4_option_callback *cb,
     printk("DHCP Option %d: %s", cb->option, net_addr_ntop(AF_INET, cb->data, buf, sizeof(buf)));
 }
 
+#define NB_MSG 11
+#define NB_POINTS_PER_MSG 12
+#define NB_POINTS (NB_MSG * NB_POINTS_PER_MSG)
+
+static struct lidar_data lidar_msg[NB_MSG];
+int lidar_msg_index = 0;
+
+extern void send_lidar_data(void *, void *, void *);
+
+void send_lidar_data(void *, void *, void *)
+{
+    static float range_to_send[NB_POINTS];
+    static float intensity_to_send[NB_POINTS];
+    // float start_angle_to_send, end_angle_to_send;
+
+    struct lidar_data lidar_data;
+
+    static volatile sensor_msgs__msg__LaserScan scan;
+
+    while (true) {
+        k_msgq_get(&lidar_msgq, &lidar_data, K_FOREVER);
+
+        lidar_msg[lidar_msg_index] = lidar_data;
+        lidar_msg_index++;
+
+        if (lidar_msg_index >= NB_MSG) {
+            lidar_msg_index = 0;
+
+            for (int i = 0; i < NB_MSG; i++) {
+                for (int j = 0; j < NB_POINTS_PER_MSG; j++) {
+                    range_to_send[i * NB_POINTS_PER_MSG + j] = lidar_msg[i].ranges[j];
+                    intensity_to_send[i * NB_POINTS_PER_MSG + j] = lidar_msg[i].intensities[j];
+                }
+            }
+
+            scan.header.frame_id.data = "lds_01_link";
+            scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
+            scan.header.stamp.nanosec
+                    = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
+
+            float angle_increment = 0;
+            if (lidar_msg[0].start_angle > lidar_msg[NB_MSG - 1].end_angle) {
+                angle_increment
+                        = (6.28 - lidar_msg[0].start_angle + lidar_msg[NB_MSG - 1].end_angle)
+                        / (float)NB_POINTS;
+            } else {
+                angle_increment = (lidar_msg[NB_MSG - 1].end_angle - lidar_msg[0].start_angle)
+                        / (float)NB_POINTS;
+            }
+
+            scan.angle_increment = angle_increment;
+            scan.time_increment = 0;
+            scan.scan_time = 0.1;
+            scan.range_min = 0.02;
+            scan.range_max = 12;
+
+            scan.ranges.data = range_to_send;
+            scan.intensities.data = intensity_to_send;
+            scan.ranges.size = NB_POINTS;
+            scan.intensities.size = NB_POINTS;
+
+            scan.angle_min = lidar_msg[0].start_angle;
+            scan.angle_max = lidar_msg[NB_MSG - 1].end_angle;
+
+            if (agent_connected) {
+                // blink LED
+                gpio_pin_toggle_dt(&led);
+                int ret = rcl_publish(&scan_publisher, &scan, NULL);
+                if (ret != RCL_RET_OK) {
+                    printk("Failed to publish message\n");
+                }
+            }
+        }
+    }
+}
+
+void uros_transport_task()
+{
+    while (1) {
+        if (agent_connected) {
+            rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
+            k_msleep(1000);
+        } else {
+            k_msleep(1000);
+        }
+    }
+}
+
+static void trigger_handler(const struct device *dev, struct sensor_trigger *trigger)
+{
+    // Blink LED
+
+    struct sensor_value val[15];
+
+    static int index = 0;
+    static bool flag = false;
+
+    struct lidar_data lidar_data;
+
+    sensor_channel_get(sensor, SENSOR_CHAN_DISTANCE, val);
+
+    // printk("Start angle: %d, End angle: %d\n", val[1].val1, val[1].val2);
+
+    // if (index >= 120) {
+    //     flag = false;
+    //     index = 0;
+
+    //     lidar_data->end_angle = 13.; //val[1].val2 / 100 * 3.14 / 180;
+
+    //     // if(k_uptime_get() - last_msg_timestamp < 10) {
+    //     //     return;
+    //     // }
+    //     // send_lidar_data();
+    //     // k_mutex_lock(&buffer_mutex, K_FOREVER);
+    //     // k_work_submit(&lidar_send_data_work);
+
+    //     // k_work_submit_to_queue(&my_work_q, &lidar_send_data_work);
+    //     while (k_msgq_put(&lidar_msgq, lidar_data, K_NO_WAIT) != 0) {
+    //         printk("Failed to put data in queue\n");
+    //         k_msgq_purge(&lidar_msgq);
+    //     }
+    //     // k_msgq_put(&lidar_msgq, &lidar_data, K_NO_WAIT);
+
+    //     // last_msg_timestamp = k_uptime_get();
+    //     // rcl_publish(&scan_publisher, &scan, NULL);
+    // } else {
+    //     if (!flag) {
+    //         lidar_data->start_angle = val[1].val1 / 100 * 3.14 / 180;
+    //         flag = true;
+    //     }
+
+    //     for (int i = 0; i < 12; i++) {
+    //         lidar_data->ranges[index + i] = 12.;//(float)val[i + 2].val1 / 100.;
+    //         lidar_data->intensities[index + i] = 12.;//(float)val[i + 2].val2 / 100.;
+    //         index++;
+    //     }
+    // }
+
+    lidar_data.start_angle = val[1].val1 / 100 * 3.14 / 180;
+    lidar_data.end_angle = val[1].val2 / 100 * 3.14 / 180;
+
+    for (int i = 0; i < NB_POINTS_PER_MSG; i++) {
+        lidar_data.ranges[i] = (float)val[i + 2].val1 / 100.;
+        lidar_data.intensities[i] = (float)val[i + 2].val2 / 100.;
+    }
+
+    while (k_msgq_put(&lidar_msgq, &lidar_data, K_NO_WAIT) != 0) {
+        printk("Failed to put data in queue\n");
+        k_msgq_purge(&lidar_msgq);
+    }
+}
+
 static void timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
     // Toggles LED0
-    // gpio_pin_toggle_dt(&led);
+    gpio_pin_toggle_dt(&led);
 
     struct sensor_value val[15];
 
     // sensor_sample_fetch(sensor);
     sensor_channel_get(sensor, SENSOR_CHAN_DISTANCE, val);
 
-    static sensor_msgs__msg__LaserScan scan;
+    // static sensor_msgs__msg__LaserScan scan;
 
-    scan.header.frame_id.data = "lds_01_link";
+    // scan.header.frame_id.data = "lds_01_link";
 
-    scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
-    scan.header.stamp.nanosec = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
+    // scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
+    // scan.header.stamp.nanosec = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
 
-    scan.angle_min = val[1].val1 / 100 * 3.14 / 180;
-    scan.angle_max = val[1].val2 / 100 * 3.14 / 180;
+    // scan.angle_min = val[1].val1 / 100 * 3.14 / 180;
+    // scan.angle_max = val[1].val2 / 100 * 3.14 / 180;
 
-    scan.angle_increment = 0.8 * 3.14 / 180;
-    scan.time_increment = 0.1 / 540;
-    scan.scan_time = 0.1;
-    scan.range_min = 0.02;
-    scan.range_max = 12;
+    // scan.angle_increment = 0.8 * 3.14 / 180;
+    // scan.time_increment = 0.1 / 540;
+    // scan.scan_time = 0.1;
+    // scan.range_min = 0.02;
+    // scan.range_max = 12;
 
-    static float ranges[12];
-    static float intensities[12];
+    // for (int i = 0; i < 12; i++) {
+    //     ranges[i] = (float)val[i + 2].val1 / 100.;
+    //     intensities[i] = (float)val[i + 2].val2 / 100.;
+    // }
 
-    for (int i = 0; i < 12; i++) {
-        ranges[i] = (float)val[i + 2].val1 / 100.;
-        intensities[i] = (float)val[i + 2].val2 / 100.;
-    }
+    // start_angle = val[1].val1 / 100 * 3.14 / 180;
+    // end_angle = val[1].val2 / 100 * 3.14 / 180;
 
-    scan.ranges.data = ranges;
-    scan.intensities.data = intensities;
-    scan.ranges.size = 12;
-    scan.intensities.size = 12;
+    // k_work_submit(&lidar_send_data_work);
 
-    RCSOFTCHECK(rcl_publish(&scan_publisher, &scan, NULL));
-}
+    // scan.ranges.data = ranges;
+    // scan.intensities.data = intensities;
+    // scan.ranges.size = 12;
+    // scan.intensities.size = 12;
 
-static void trigger_handler(const struct device *dev, struct sensor_trigger *trigger)
-{
-    // Blink LED
-    struct sensor_value val[15];
-
-    static float ranges[120];
-    static float intensities[120];
-    static int index = 0;
-    static bool flag = false;
-
-    static sensor_msgs__msg__LaserScan scan;
-
-    sensor_channel_get(sensor, SENSOR_CHAN_DISTANCE, val);
-
-    // // printk("Start angle: %d, End angle: %d\n", val[1].val1, val[1].val2);
-
-    if (index >= 120) {
-        flag = false;
-        index = 0;
-
-        scan.header.frame_id.data = "lds_01_link";
-        scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
-        scan.header.stamp.nanosec = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
-
-        scan.angle_max = val[1].val2 / 100 * 3.14 / 180;
-
-        scan.angle_increment = 0.8 * 3.14 / 180;
-        scan.time_increment = 0.1 / 540;
-        scan.scan_time = 0.1;
-        scan.range_min = 0.02;
-        scan.range_max = 12;
-
-        scan.ranges.data = ranges;
-        scan.intensities.data = intensities;
-        scan.ranges.size = 120;
-        scan.intensities.size = 120;
-
-        // blink LED
-        gpio_pin_toggle_dt(&led);
-
-        rcl_publish(&scan_publisher, &scan, NULL);
-    } else {
-        if (!flag) {
-            scan.angle_min = val[1].val1 / 100 * 3.14 / 180;
-            flag = true;
-        }
-
-        for (int i = 0; i < 12; i++) {
-            ranges[index] = (float)val[i + 2].val1 / 100.;
-            intensities[index] = (float)val[i + 2].val2 / 100.;
-            index++;
-        }
-    }
+    // RCSOFTCHECK(rcl_publish(&scan_publisher, &scan, NULL));
 }
 
 int main()
@@ -238,6 +358,18 @@ int main()
     int ret;
 
     printk("Starting micro-ROS Zephyr app\n");
+
+    int priority = 5; // Set your thread's priority
+    k_tid_t thread_id = k_thread_create(&thread_data,
+            thread_stack,
+            K_THREAD_STACK_SIZEOF(thread_stack),
+            send_lidar_data,
+            NULL,
+            NULL,
+            NULL,
+            priority,
+            0,
+            K_NO_WAIT);
 
     // Init LED0
     if (!gpio_is_ready_dt(&led)) {
@@ -264,7 +396,7 @@ int main()
     sensor_trigger_set(sensor, &trig, trigger_handler);
 
     // Init micro-ROS
-    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.17", "8888" };
+    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.4", "8888" };
 
     // Init micro-ROS
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
@@ -294,6 +426,8 @@ int main()
         printk("Waiting for agent...\n");
         k_sleep(K_SECONDS(1)); // Sleep for 1 second
     }
+
+    agent_connected = true;
 
     printk("Agent found!\n");
 
@@ -326,7 +460,7 @@ int main()
     // timer_callback));
 
     // Create executor
-    rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
+    executor = rclc_executor_get_zero_initialized_executor();
     RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
     // RCCHECK(rclc_executor_add_timer(&executor, &timer));
 
@@ -334,5 +468,9 @@ int main()
     RCCHECK(rmw_uros_sync_session(1000));
     ros_timestamp = rmw_uros_epoch_millis();
 
-    rclc_executor_spin(&executor);
+    while (1) {
+        k_msleep(1000);
+    }
+
+    // rclc_executor_spin(&executor);
 }
