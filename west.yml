@@ -23,8 +23,8 @@ manifest:
           - fatfs
           - nanopb
     - name: micro_ros_zephyr_module
-      remote: micro-ROS
-      revision: humble
+      remote: catie-6tron
+      revision: fix/zephyr-3.2-header-humble
       path: modules/micro_ros_zephyr_module
     - name: zephyr_hls-lfcd2
       remote: catie-6tron
