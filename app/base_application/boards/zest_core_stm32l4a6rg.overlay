@@ -15,3 +15,15 @@
 	current-speed = <115200>;
 	status = "okay";
 };
+
+&usart1 {
+	pinctrl-0 = <&usart1_tx_pb6 &usart1_rx_pb7>;
+	pinctrl-names = "default";
+
+	current-speed = <230400>;
+	status = "okay";
+
+  lidar0: lidar_0 {
+		compatible = "ldrobot,ld19";
+	};
+};
