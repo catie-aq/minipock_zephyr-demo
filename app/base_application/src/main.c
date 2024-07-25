@@ -38,7 +38,7 @@
     }
 
 rcl_publisher_t odom_publisher;
-rcl_subscription_t odom_subscriber;
+rcl_subscription_t cmd_vel_subscriber;
 geometry_msgs__msg__Twist cmd_vel_twist_msg;
 
 // LED0
@@ -57,6 +57,18 @@ K_MSGQ_DEFINE(uart_msgq, odom_size, 10, 4);
 // Save timestamp of last message
 static uint64_t last_msg_timestamp;
 static uint64_t ros_timestamp;
+
+// Network
+#define DHCP_OPTION_NTP (42)
+static uint8_t ntp_server[4];
+
+static struct net_mgmt_event_callback mgmt_cb;
+static struct net_dhcpv4_option_callback dhcp_cb;
+
+rclc_executor_t executor;
+
+static bool connected = 0;
+static bool agent_connected = 0;
 
 void process_odometry_msg()
 {
@@ -128,6 +140,7 @@ void uart_callback_handler(const struct device *dev, void *user_data)
 
 void subscription_callback(const void *msgin)
 {
+    gpio_pin_toggle_dt(&led);
 
     const geometry_msgs__msg__Twist *uros_msg = (const geometry_msgs__msg__Twist *)msgin;
 
@@ -158,6 +171,59 @@ void subscription_callback(const void *msgin)
     }
 }
 
+static void start_dhcpv4_client(struct net_if *iface, void *user_data)
+{
+    ARG_UNUSED(user_data);
+
+    printk("Start on %s: index=%d", net_if_get_device(iface)->name, net_if_get_by_iface(iface));
+    net_dhcpv4_start(iface);
+}
+
+static void handler(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
+{
+    int i = 0;
+
+    if (mgmt_event != NET_EVENT_IPV4_ADDR_ADD) {
+        return;
+    }
+
+    for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
+        char buf[NET_IPV4_ADDR_LEN];
+
+        if (iface->config.ip.ipv4->unicast[i].addr_type != NET_ADDR_DHCP) {
+            continue;
+        }
+
+        printk("   Address[%d]: %s",
+                net_if_get_by_iface(iface),
+                net_addr_ntop(AF_INET,
+                        &iface->config.ip.ipv4->unicast[i].address.in_addr,
+                        buf,
+                        sizeof(buf)));
+        printk("    Subnet[%d]: %s",
+                net_if_get_by_iface(iface),
+                net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
+        printk("    Router[%d]: %s",
+                net_if_get_by_iface(iface),
+                net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
+        printk("Lease time[%d]: %u seconds",
+                net_if_get_by_iface(iface),
+                iface->config.dhcpv4.lease_time);
+    }
+
+    connected = 1;
+}
+
+static void option_handler(struct net_dhcpv4_option_callback *cb,
+        size_t length,
+        enum net_dhcpv4_msg_type msg_type,
+        struct net_if *iface)
+{
+    char buf[NET_IPV4_ADDR_LEN];
+
+    printk("DHCP Option %d: %s", cb->option, net_addr_ntop(AF_INET, cb->data, buf, sizeof(buf)));
+}
+
 int main()
 {
     int ret;
@@ -179,17 +245,37 @@ int main()
     }
 
     // Init micro-ROS
+    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.4", "8888" };
+
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
-            (void *)DEVICE_DT_GET(DT_ALIAS(uros_serial_port)),
+            (void *)&agent_param,
             zephyr_transport_open,
             zephyr_transport_close,
             zephyr_transport_write,
             zephyr_transport_read);
 
+    net_mgmt_init_event_callback(&mgmt_cb, handler, NET_EVENT_IPV4_ADDR_ADD);
+    net_mgmt_add_event_callback(&mgmt_cb);
+
+    net_dhcpv4_init_option_callback(
+            &dhcp_cb, option_handler, DHCP_OPTION_NTP, ntp_server, sizeof(ntp_server));
+
+    net_dhcpv4_add_option_callback(&dhcp_cb);
+
+    net_if_foreach(start_dhcpv4_client, NULL);
+
+    while (!connected) {
+        // printf("Waiting for connection\n");
+        usleep(10000);
+    }
+    printf("Connection OK\n");
+
     while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
         printk("Waiting for agent...\n");
         k_sleep(K_SECONDS(1)); // Sleep for 1 second
     }
+
+    printk("Agent found!\n");
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
     rclc_support_t support;
@@ -206,22 +292,25 @@ int main()
     RCCHECK(rclc_node_init_default(&node, "zephyr", "", &support));
 
     // Create cmd vel subscriber
-    RCCHECK(rclc_subscription_init_default(&odom_subscriber,
+    RCCHECK(rclc_subscription_init_best_effort(&cmd_vel_subscriber,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
-            "cmd_vel"));
+            "/cmd_vel"));
 
     // Create odometry publisher
     RCCHECK(rclc_publisher_init_best_effort(&odom_publisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseStamped),
-            "odom"));
+            "/odom"));
 
     // Create executor
-    rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
+    executor = rclc_executor_get_zero_initialized_executor();
     RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
-    RCCHECK(rclc_executor_add_subscription(
-            &executor, &odom_subscriber, &cmd_vel_twist_msg, &subscription_callback, ON_NEW_DATA));
+    RCCHECK(rclc_executor_add_subscription(&executor,
+            &cmd_vel_subscriber,
+            &cmd_vel_twist_msg,
+            &subscription_callback,
+            ON_NEW_DATA));
 
     // Synchronize time
     RCCHECK(rmw_uros_sync_session(1000));
@@ -245,7 +334,11 @@ int main()
     uart_irq_rx_enable(uart_dev);
     uart_irq_tx_disable(uart_dev);
 
-    rclc_executor_spin(&executor);
+    // Start micro-ROS thread
+    while (1) {
+        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
+        usleep(10000);
+    }
 }
 
 K_THREAD_DEFINE(uart_rx_thread, 1024, process_odometry_msg, NULL, NULL, NULL, 5, 0, 0);
