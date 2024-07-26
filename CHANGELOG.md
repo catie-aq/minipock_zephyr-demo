@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v2.0.0]
+
 ### Added
 
 - Add devcontainer configuration.
@@ -20,3 +22,4 @@
 _Initial release._
 
 [v1.0.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v1.0.0
+[v2.0.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v2.0.0
