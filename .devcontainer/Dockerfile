@@ -1,4 +1,4 @@
-FROM zephyrprojectrtos/ci:latest
+FROM zephyrprojectrtos/ci:v0.26.11
 
 RUN wget --post-data "accept_license_agreement=accepted" https://www.segger.com/downloads/jlink/JLink_Linux_V796c_x86_64.tgz \
     && mkdir -p /opt/SEGGER/JLink \
