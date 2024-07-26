@@ -13,6 +13,7 @@ jobs:
         application: [ "app/base_application", "app/lidar_example" ]
     uses: catie-aq/zephyr_workflows/.github/workflows/application.yml@main
     with:
+      container: "zephyrprojectrtos/ci:v0.26.13"
       application: ${{ matrix.application }}
       board: "zest_core_stm32l4a6rg"
       extra_cmd: "pip3 install catkin_pkg lark-parser empy colcon-common-extensions"
