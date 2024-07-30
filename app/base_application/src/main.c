@@ -324,8 +324,8 @@ static void trigger_handler(const struct device *dev, const struct sensor_trigge
     lidar_data.end_angle = val[1].val2 / 100 * 3.14 / 180;
 
     for (int i = 0; i < NB_POINTS_PER_MSG; i++) {
-        lidar_data.ranges[i] = (float)val[i + 2].val1 / 100.;
-        lidar_data.intensities[i] = (float)val[i + 2].val2 / 100.;
+        lidar_data.ranges[i] = (float)val[i + 2].val1 / 1000.;
+        lidar_data.intensities[i] = (float)val[i + 2].val2;
     }
 
     while (k_msgq_put(&lidar_msgq, &lidar_data, K_NO_WAIT) != 0) {
