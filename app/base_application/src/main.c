@@ -452,7 +452,7 @@ int main()
 
     // Synchronize time
     RCCHECK(rmw_uros_sync_session(1000));
-    ros_timestamp = rmw_uros_epoch_millis();
+    ros_timestamp = rmw_uros_epoch_millis() - k_uptime_get();
 
     // Set UART callback
     ret = uart_irq_callback_set(uart_dev, uart_callback_handler);
