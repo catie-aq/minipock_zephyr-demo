@@ -1,5 +1,5 @@
-![banner](imgs/MiniPock_banner_dark_theme.png#gh-dark-mode-only)
-![banner](imgs/MiniPock_banner_light_theme.png#gh-light-mode-only)
+![banner](imgs/minipock_banner_dark_theme.svg#gh-dark-mode-only)
+![banner](imgs/minipock_banner_light_theme.svg#gh-light-mode-only)
 
 [![Build](https://github.com/catie-aq/minipock_zephyr-demo/actions/workflows/build.yaml/badge.svg)](https://github.com/catie-aq/minipock_zephyr-demo/actions/workflows/build.yaml)
 
