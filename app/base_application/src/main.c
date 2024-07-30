@@ -431,7 +431,7 @@ int main()
     RCCHECK(rclc_publisher_init_best_effort(&odom_publisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseStamped),
-            "/odom"));
+            "/odom_raw"));
 
     // Create scan publisher
     static rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
