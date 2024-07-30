@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- [Base Application](app/base_application): Add namespace support.
+
 ## [v2.0.0]
 
 ### Added

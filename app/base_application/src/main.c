@@ -122,7 +122,9 @@ void process_odometry_msg()
         // Convert to ROS message
         static geometry_msgs__msg__PoseStamped pose_stamped_msg;
 
-        pose_stamped_msg.header.frame_id.data = "odom";
+        char frame_id[50];
+        snprintf(frame_id, sizeof(frame_id), "%s/odom", CONFIG_ROS_NAMESPACE);
+        pose_stamped_msg.header.frame_id.data = frame_id;
 
         pose_stamped_msg.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
         pose_stamped_msg.header.stamp.nanosec
@@ -271,7 +273,9 @@ void send_lidar_data(void *, void *, void *)
                 }
             }
 
-            scan.header.frame_id.data = "lds_01_link";
+            char frame_id[50];
+            snprintf(frame_id, sizeof(frame_id), "%s/lds_01_link", CONFIG_ROS_NAMESPACE);
+            scan.header.frame_id.data = frame_id;
             scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
             scan.header.stamp.nanosec
                     = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
@@ -422,23 +426,29 @@ int main()
     RCCHECK(rclc_node_init_default(&node, "zephyr", "", &support));
 
     // Create cmd vel subscriber
+    char cmd_vel_topic_name[50];
+    snprintf(cmd_vel_topic_name, sizeof(cmd_vel_topic_name), "/%s/cmd_vel", CONFIG_ROS_NAMESPACE);
     RCCHECK(rclc_subscription_init_best_effort(&cmd_vel_subscriber,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
-            "/cmd_vel"));
+            cmd_vel_topic_name));
 
     // Create odometry publisher
+    char odom_topic_name[50];
+    snprintf(odom_topic_name, sizeof(odom_topic_name), "/%s/odom_raw", CONFIG_ROS_NAMESPACE);
     RCCHECK(rclc_publisher_init_best_effort(&odom_publisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseStamped),
-            "/odom_raw"));
+            odom_topic_name));
 
     // Create scan publisher
+    char scan_topic_name[50];
+    snprintf(scan_topic_name, sizeof(scan_topic_name), "/%s/scan_raw", CONFIG_ROS_NAMESPACE);
     static rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
     rclc_publisher_init(&scan_publisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, LaserScan),
-            "/scan",
+            scan_topic_name,
             &custom_qos_profile);
 
     // Create executor
