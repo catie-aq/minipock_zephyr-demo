@@ -2,6 +2,10 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
+#include <zephyr/net/net_context.h>
+#include <zephyr/net/net_core.h>
+#include <zephyr/net/net_if.h>
+#include <zephyr/net/net_mgmt.h>
 
 #include <rcl/error_handling.h>
 #include <rcl/rcl.h>
@@ -214,19 +218,20 @@ static void handler(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, str
     for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
         char buf[NET_IPV4_ADDR_LEN];
 
-        if (iface->config.ip.ipv4->unicast[i].addr_type != NET_ADDR_DHCP) {
+        if (iface->config.ip.ipv4->unicast[i].ipv4.addr_type != NET_ADDR_DHCP) {
             continue;
         }
 
         printk("   Address[%d]: %s",
                 net_if_get_by_iface(iface),
                 net_addr_ntop(AF_INET,
-                        &iface->config.ip.ipv4->unicast[i].address.in_addr,
+                        &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
                         buf,
                         sizeof(buf)));
         printk("    Subnet[%d]: %s",
                 net_if_get_by_iface(iface),
-                net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
+                net_addr_ntop(
+                        AF_INET, &iface->config.ip.ipv4->unicast[i].netmask, buf, sizeof(buf)));
         printk("    Router[%d]: %s",
                 net_if_get_by_iface(iface),
                 net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
@@ -309,7 +314,7 @@ void send_lidar_data(void *, void *, void *)
                 gpio_pin_toggle_dt(&led);
                 int ret = rcl_publish(&scan_publisher, &scan, NULL);
                 if (ret != RCL_RET_OK) {
-                    printk("Failed to publish message\n");
+                    printk("Failed to publish message: %d\n", ret);
                 }
             }
         }
@@ -333,7 +338,7 @@ static void trigger_handler(const struct device *dev, const struct sensor_trigge
     }
 
     while (k_msgq_put(&lidar_msgq, &lidar_data, K_NO_WAIT) != 0) {
-        printk("Failed to put data in queue\n");
+        // printk("Failed to put data in queue\n");
         k_msgq_purge(&lidar_msgq);
     }
 }
@@ -377,7 +382,7 @@ int main()
     }
 
     // Init micro-ROS
-    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.4", "8888" };
+    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.6", "8888" };
 
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)&agent_param,
@@ -409,7 +414,7 @@ int main()
 
     agent_connected = true;
 
-    printk("Agent found!\n");
+    printk("\nAgent found!\n");
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
     rclc_support_t support;
@@ -428,28 +433,40 @@ int main()
     // Create cmd vel subscriber
     char cmd_vel_topic_name[50];
     snprintf(cmd_vel_topic_name, sizeof(cmd_vel_topic_name), "/%s/cmd_vel", CONFIG_ROS_NAMESPACE);
-    RCCHECK(rclc_subscription_init_best_effort(&cmd_vel_subscriber,
+    rclc_subscription_init_best_effort(&cmd_vel_subscriber,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
-            cmd_vel_topic_name));
+            cmd_vel_topic_name);
+
+    if (ret != RCL_RET_OK) {
+        printk("Failed to create subscriber: %d\n", ret);
+    }
 
     // Create odometry publisher
     char odom_topic_name[50];
     snprintf(odom_topic_name, sizeof(odom_topic_name), "/%s/odom_raw", CONFIG_ROS_NAMESPACE);
-    RCCHECK(rclc_publisher_init_best_effort(&odom_publisher,
+    ret = rclc_publisher_init_best_effort(&odom_publisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseStamped),
-            odom_topic_name));
+            odom_topic_name);
+
+    if (ret != RCL_RET_OK) {
+        printk("Failed to create odom publisher: %d\n", ret);
+    }
 
     // Create scan publisher
     char scan_topic_name[50];
     snprintf(scan_topic_name, sizeof(scan_topic_name), "/%s/scan_raw", CONFIG_ROS_NAMESPACE);
     static rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
-    rclc_publisher_init(&scan_publisher,
+    ret = rclc_publisher_init(&scan_publisher,
             &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, LaserScan),
             scan_topic_name,
             &custom_qos_profile);
+
+    if (ret != RCL_RET_OK) {
+        printk("Failed to create scan publisher: %d\n", ret);
+    }
 
     // Create executor
     executor = rclc_executor_get_zero_initialized_executor();

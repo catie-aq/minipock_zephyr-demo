@@ -115,19 +115,20 @@ static void handler(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, str
     for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
         char buf[NET_IPV4_ADDR_LEN];
 
-        if (iface->config.ip.ipv4->unicast[i].addr_type != NET_ADDR_DHCP) {
+        if (iface->config.ip.ipv4->unicast[i].ipv4.addr_type != NET_ADDR_DHCP) {
             continue;
         }
 
         printk("   Address[%d]: %s",
                 net_if_get_by_iface(iface),
                 net_addr_ntop(AF_INET,
-                        &iface->config.ip.ipv4->unicast[i].address.in_addr,
+                        &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
                         buf,
                         sizeof(buf)));
         printk("    Subnet[%d]: %s",
                 net_if_get_by_iface(iface),
-                net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf, sizeof(buf)));
+                net_addr_ntop(
+                        AF_INET, &iface->config.ip.ipv4->unicast[i].netmask, buf, sizeof(buf)));
         printk("    Router[%d]: %s",
                 net_if_get_by_iface(iface),
                 net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
