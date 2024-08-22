@@ -6,6 +6,10 @@
 
 - [Base Application](app/base_application): Add namespace support.
 
+### Changed
+
+- Update to Zephyr 3.7.0.
+
 ## [v2.0.0]
 
 ### Added
