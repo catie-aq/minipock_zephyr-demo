@@ -7,6 +7,13 @@ list(APPEND ZEPHYR_EXTRA_MODULES ${CMAKE_CURRENT_SOURCE_DIR}/../../../modules/mi
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(base_application)
 
+# Apply Git patch before build
+execute_process(
+    COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/../fix_static_init_gnu.patch
+    WORKING_DIRECTORY ${ZEPHYR_BASE}
+    RESULT_VARIABLE result
+)
+
 list(APPEND CMAKE_MODULE_PATH ${ZEPHYR_BASE}/modules/nanopb)
 include(nanopb)
 
