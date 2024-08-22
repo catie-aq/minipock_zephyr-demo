@@ -2,7 +2,7 @@
 	current-speed = <230400>;
 	status = "okay";
 
-  lidar0: lidar_0 {
+	lidar0: lidar_0 {
 		compatible = "ldrobot,ld19";
 	};
 };
