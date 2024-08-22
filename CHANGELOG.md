@@ -9,6 +9,7 @@
 ### Changed
 
 - Update to Zephyr 3.7.0.
+- Update to micro-ROS jazzy.
 
 ## [v2.0.0]
 
