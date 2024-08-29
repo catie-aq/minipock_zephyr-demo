@@ -153,9 +153,11 @@ void uart_callback_handler(const struct device *dev, void *user_data)
 {
     while (uart_irq_update(dev) && uart_irq_is_pending(dev)) {
 
-        if (k_uptime_get() - last_msg_timestamp > 10) {
+        if (k_uptime_get() - last_msg_timestamp > 5) {
+            if (rx_buf_pos == odom_size) {
+                k_msgq_put(&uart_msgq, rx_buf, K_NO_WAIT);
+            }
             rx_buf_pos = 0;
-            k_msgq_put(&uart_msgq, rx_buf, K_NO_WAIT);
         }
 
         if (uart_irq_rx_ready(dev)) {
@@ -499,7 +501,7 @@ int main()
     uart_irq_rx_enable(uart_dev);
     uart_irq_tx_disable(uart_dev);
 
-    int priority = 5;
+    int priority = 10;
     k_thread_create(&thread_data,
             thread_stack,
             K_THREAD_STACK_SIZEOF(thread_stack),
