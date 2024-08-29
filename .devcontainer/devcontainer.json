@@ -12,5 +12,5 @@
     ],
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspace,type=bind",
     "workspaceFolder": "/workspace",
-    "postStartCommand": "sed -i 's/robbyrussell/intheloop/g' ~/.zshrc && find ${containerWorkspaceFolder} -name '.git' -type d -exec bash -c 'git config --global --add safe.directory ${0%/.git}' {} \\;"
+    "postStartCommand": "pip install colcon-common-extensions && sed -i 's/robbyrussell/intheloop/g' ~/.zshrc && find ${containerWorkspaceFolder} -name '.git' -type d -exec bash -c 'git config --global --add safe.directory ${0%/.git}' {} \\;"
 }
