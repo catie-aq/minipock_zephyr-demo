@@ -19,7 +19,7 @@ jobs:
     with:
       container: "zephyrprojectrtos/ci:v0.26.14"
       application: ${{ matrix.application }}
-      board: "zest_core_stm32l4a6rg"
+      board: "zest_core_stm32h753zi"
       extra_cmd: "pip3 install catkin_pkg lark-parser empy colcon-common-extensions"
 
     secrets:

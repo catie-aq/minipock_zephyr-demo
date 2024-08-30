@@ -1,0 +1,11 @@
+&uart7 {
+	pinctrl-0 = <&uart7_tx_pe8 &uart7_rx_pe7>;
+	pinctrl-names = "default";
+
+	current-speed = <230400>;
+	status = "okay";
+
+  	lidar0: lidar_0 {
+		compatible = "ldrobot,ld19";
+	};
+};
