@@ -38,7 +38,7 @@ manifest:
       import:
         name-allowlist:
           - 6tron_connector
-          - zest_core_stm32l4a6rg
+          - zest_core_stm32h753zi
           - zest_interface_ethernet
     - name: ldrobot-ld19
       remote: catie-6tron

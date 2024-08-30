@@ -10,6 +10,7 @@
 
 - Update to Zephyr 3.7.0.
 - Update to micro-ROS jazzy.
+- Change board to Zest_Core_STM32H753ZI.
 
 ## [v2.0.0]
 
