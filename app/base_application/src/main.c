@@ -6,6 +6,7 @@
 #include <zephyr/net/net_core.h>
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/net_mgmt.h>
+#include <zephyr/net/wifi_mgmt.h>
 
 #include <rcl/error_handling.h>
 #include <rcl/rcl.h>
@@ -26,6 +27,9 @@
 #include "pb_decode.h"
 #include "pb_encode.h"
 #include "src/minipock.pb.h"
+
+// Wireless management
+static struct net_mgmt_event_callback wifi_shell_mgmt_cb;
 
 #define RCCHECK(fn)                                                                                \
     {                                                                                              \
@@ -95,6 +99,39 @@ int lidar_msg_index = 0;
 static const struct device *sensor;
 
 K_MSGQ_DEFINE(lidar_msgq, sizeof(struct lidar_data), 20, 4);
+
+static void wifi_mgmt_event_handler(
+        struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
+{
+    if (NET_EVENT_IPV4_ADDR_ADD == mgmt_event) {
+        printk("DHCP Connected\n");
+        // for (int i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
+        //     char buf[NET_IPV4_ADDR_LEN];
+
+        //     if (iface->config.ip.ipv4->unicast[i].ipv4.addr_type != NET_ADDR_DHCP) {
+        //         continue;
+        //     }
+
+        //     printk("   Address[%d]: %s",
+        //             net_if_get_by_iface(iface),
+        //             net_addr_ntop(AF_INET,
+        //                     &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
+        //                     buf,
+        //                     sizeof(buf)));
+        //     // printk("    Subnet[%d]: %s",
+        //     //         net_if_get_by_iface(iface),
+        //     //         net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf,
+        //     sizeof(buf)));
+        //     // printk("    Router[%d]: %s",
+        //     //         net_if_get_by_iface(iface),
+        //     //         net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
+        //     // printk("Lease time[%d]: %u seconds",
+        //     //         net_if_get_by_iface(iface),
+        //     //         iface->config.dhcpv4.lease_time);
+        // }
+        connected = 1;
+    }
+}
 
 void process_odometry_msg()
 {
@@ -383,8 +420,49 @@ int main()
         return 0;
     }
 
+    // ------ Wifi Configuration ------
+    net_mgmt_init_event_callback(
+            &wifi_shell_mgmt_cb, wifi_mgmt_event_handler, NET_EVENT_IPV4_ADDR_ADD);
+
+    net_mgmt_add_event_callback(&wifi_shell_mgmt_cb);
+
+    k_sleep(K_SECONDS(5));
+
+    static struct wifi_connect_req_params wifi_args;
+
+    wifi_args.security = WIFI_SECURITY_TYPE_PSK;
+    wifi_args.channel = 13;
+    wifi_args.psk = "";
+    wifi_args.psk_length = strlen(wifi_args.psk);
+    wifi_args.ssid = "";
+    wifi_args.ssid_length = strlen(wifi_args.ssid);
+    wifi_args.timeout = 0;
+
+    struct net_if *iface = net_if_get_wifi_sta();
+
+    if (!iface) {
+        printf("No default network interface\n");
+    }
+
+    ret = net_mgmt(
+            NET_REQUEST_WIFI_CONNECT, iface, &wifi_args, sizeof(struct wifi_connect_req_params));
+
+    if (ret < 0) {
+        printf("Connection request failed %d\n", ret);
+    } else {
+        printf("Connection requested\n");
+    }
+
+    while (!connected) {
+        // printf("Waiting for connection\n");
+        usleep(10000);
+    }
+    printf("Connection OK\n");
+
+    k_sleep(K_SECONDS(5));
+
     // Init micro-ROS
-    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.6", "8888" };
+    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.17", "8888" };
 
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)&agent_param,
@@ -393,21 +471,7 @@ int main()
             zephyr_transport_write,
             zephyr_transport_read);
 
-    net_mgmt_init_event_callback(&mgmt_cb, handler, NET_EVENT_IPV4_ADDR_ADD);
-    net_mgmt_add_event_callback(&mgmt_cb);
-
-    net_dhcpv4_init_option_callback(
-            &dhcp_cb, option_handler, DHCP_OPTION_NTP, ntp_server, sizeof(ntp_server));
-
-    net_dhcpv4_add_option_callback(&dhcp_cb);
-
-    net_if_foreach(start_dhcpv4_client, NULL);
-
-    while (!connected) {
-        // printf("Waiting for connection\n");
-        usleep(10000);
-    }
-    printf("Connection OK\n");
+    printk("Ping %d\n", rmw_uros_ping_agent(100, 1));
 
     while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
         printk("Waiting for agent...\n");

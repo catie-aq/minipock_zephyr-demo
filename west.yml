@@ -15,13 +15,8 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: v3.7.0
-      import:
-        name-allowlist:
-          - cmsis
-          - hal_stm32
-          - fatfs
-          - nanopb
+      revision: main
+      import: true
     - name: micro_ros_zephyr_module
       remote: catie-6tron
       revision: fix/zephyr-3.2-header-jazzy
@@ -45,3 +40,6 @@ manifest:
       repo-path: zephyr_ldrobot-ld19
       revision: main
       path: 6tron/ldrobot-ld19
+    - name: zest_radio_wifi
+      remote: catie-6tron
+      path: 6tron/shields/zest_radio_wifi

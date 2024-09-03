@@ -1,16 +1,16 @@
 / {
     aliases {
-        rbdc-serial-port = &sixtron_connector_1_uart;
+        rbdc-serial-port = &sixtron_connector_2_uart;
     };
 };
 
-&sixtron_connector_1_uart {
+&sixtron_connector_2_uart {
 	current-speed = <115200>;
 	status = "okay";
 };
 
-&uart7 {
-	pinctrl-0 = <&uart7_tx_pe8 &uart7_rx_pe7>;
+&usart3 {
+	pinctrl-0 = <&usart3_tx_pd8 &usart3_rx_pd9>;
 	pinctrl-names = "default";
 
 	current-speed = <230400>;
