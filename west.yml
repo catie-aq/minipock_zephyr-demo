@@ -42,4 +42,5 @@ manifest:
       path: 6tron/ldrobot-ld19
     - name: zest_radio_wifi
       remote: catie-6tron
+      repo-path: zephyr_zest-radio-wifi
       path: 6tron/shields/zest_radio_wifi
