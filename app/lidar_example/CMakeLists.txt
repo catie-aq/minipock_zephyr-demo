@@ -14,10 +14,4 @@ execute_process(
     RESULT_VARIABLE result
 )
 
-execute_process(
-    COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/../fix_zest_core_stm32h753zi_ethernet.patch
-    WORKING_DIRECTORY ${ZEPHYR_BASE}/../6tron/boards/zest_core_stm32h753zi
-    RESULT_VARIABLE result
-)
-
 target_sources(app PRIVATE ${proto_sources} src/main.c)
