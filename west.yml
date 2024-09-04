@@ -43,4 +43,5 @@ manifest:
     - name: zest_radio_wifi
       remote: catie-6tron
       repo-path: zephyr_zest-radio-wifi
+      revision: 6-make-change-to-be-compatible-with-zephyr-370
       path: 6tron/shields/zest_radio_wifi
