@@ -15,8 +15,16 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: main
-      import: true
+      revision: 69ad8937b1696a42191f9b5d803bdfa8827192cd
+      import:
+        name-allowlist:
+          - cmsis
+          - hal_stm32
+          - hal_nordic
+          - fatfs
+          - nanopb
+          - mbedtls
+          - hostap
     - name: micro_ros_zephyr_module
       remote: catie-6tron
       revision: fix/zephyr-3.2-header-jazzy
