@@ -5,10 +5,11 @@
 ### Added
 
 - [Base Application](app/base_application): Add namespace support.
+- [Base Application](app/base_application): Add Wi-Fi support.
 
 ### Changed
 
-- Update to Zephyr 3.7.0.
+- Update to Zephyr [69ad8937b16](https://github.com/zephyrproject-rtos/zephyr/tree/69ad8937b1696a42191f9b5d803bdfa8827192cd) (3.7.0+).
 - Update to micro-ROS jazzy.
 - Change board to Zest_Core_STM32H753ZI.
 
