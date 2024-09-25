@@ -104,31 +104,7 @@ static void wifi_mgmt_event_handler(
         struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
 {
     if (NET_EVENT_IPV4_ADDR_ADD == mgmt_event) {
-        printk("DHCP Connected\n");
-        // for (int i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
-        //     char buf[NET_IPV4_ADDR_LEN];
-
-        //     if (iface->config.ip.ipv4->unicast[i].ipv4.addr_type != NET_ADDR_DHCP) {
-        //         continue;
-        //     }
-
-        //     printk("   Address[%d]: %s",
-        //             net_if_get_by_iface(iface),
-        //             net_addr_ntop(AF_INET,
-        //                     &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
-        //                     buf,
-        //                     sizeof(buf)));
-        //     // printk("    Subnet[%d]: %s",
-        //     //         net_if_get_by_iface(iface),
-        //     //         net_addr_ntop(AF_INET, &iface->config.ip.ipv4->netmask, buf,
-        //     sizeof(buf)));
-        //     // printk("    Router[%d]: %s",
-        //     //         net_if_get_by_iface(iface),
-        //     //         net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
-        //     // printk("Lease time[%d]: %u seconds",
-        //     //         net_if_get_by_iface(iface),
-        //     //         iface->config.dhcpv4.lease_time);
-        // }
+        printk("IPv4 address added\n");
         connected = 1;
     }
 }
@@ -462,7 +438,7 @@ int main()
     k_sleep(K_SECONDS(5));
 
     // Init micro-ROS
-    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.17", "8888" };
+    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.2", "8888" };
 
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)&agent_param,
@@ -470,8 +446,6 @@ int main()
             zephyr_transport_close,
             zephyr_transport_write,
             zephyr_transport_read);
-
-    printk("Ping %d\n", rmw_uros_ping_agent(100, 1));
 
     while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
         printk("Waiting for agent...\n");
