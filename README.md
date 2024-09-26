@@ -24,7 +24,7 @@ west update
 
 - Compile the project
 ```bash
-west build -b zest_core_stm32l4a6rg app/<project>
+west build -b zest_core_stm32h753zi app/<project>
 ```
 
 - Program the target device
