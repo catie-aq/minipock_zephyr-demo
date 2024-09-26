@@ -468,7 +468,7 @@ int main()
 
     // Create node
     rcl_node_t node;
-    RCCHECK(rclc_node_init_default(&node, "zephyr", "", &support));
+    RCCHECK(rclc_node_init_default(&node, CONFIG_ROS_NAMESPACE, "", &support));
 
     // Create cmd vel subscriber
     char cmd_vel_topic_name[50];
