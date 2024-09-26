@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v2.1.0]
 
 ### Added
 
@@ -34,3 +34,4 @@ _Initial release._
 
 [v1.0.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v1.0.0
 [v2.0.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v2.0.0
+[v2.1.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v2.1.0
