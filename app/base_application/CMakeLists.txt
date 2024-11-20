@@ -21,4 +21,7 @@ zephyr_nanopb_sources(app src/minipock.proto)
 
 add_subdirectory(drivers)
 
-target_sources(app PRIVATE ${proto_sources} src/main.c)
+target_include_directories(app PRIVATE include)
+target_sources(app PRIVATE ${proto_sources})
+target_sources(app PRIVATE src/main.c)
+target_sources(app PRIVATE src/scan.c)
