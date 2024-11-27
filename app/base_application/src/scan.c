@@ -119,19 +119,6 @@ void send_lidar_data(void *, void *, void *)
 int init_scan(rcl_node_t *node)
 {
     int ret = 0;
-    char scan_topic_name[50];
-    snprintf(scan_topic_name, sizeof(scan_topic_name), "/%s/scan_raw", CONFIG_ROS_NAMESPACE);
-    static rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
-
-    ret = rclc_publisher_init(&scan_publisher,
-            node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, LaserScan),
-            scan_topic_name,
-            &custom_qos_profile);
-    if (ret != RCL_RET_OK) {
-        LOG_ERR("Failed to create scan publisher: %d\n", ret);
-        return ret;
-    }
 
     // Initialize LiDAR
     if (!device_is_ready(lidar)) {
