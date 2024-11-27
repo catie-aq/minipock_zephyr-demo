@@ -2,14 +2,23 @@
 
 #include <geometry_msgs/msg/pose_stamped.h>
 #include <geometry_msgs/msg/twist.h>
+#include <rcl/init_options.h>
 #include <rclc/executor.h>
 #include <rclc/rclc.h>
+#include <rmw_microros/rmw_microros.h>
+#include <sensor_msgs/msg/laser_scan.h>
+#include <zephyr/logging/log.h>
 
 #include "base_interface.h"
+#include "common.h"
 #include "micro_ros_node.h"
+#include "scan.h"
+
+LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_INF);
 
 rclc_executor_t executor;
 rcl_publisher_t odom_publisher;
+rcl_publisher_t scan_publisher;
 rcl_subscription_t cmd_vel_subscriber;
 geometry_msgs__msg__Twist cmd_vel_twist_msg;
 uint64_t ros_timestamp;
@@ -26,11 +35,52 @@ void subscription_callback(const void *msgin)
             uros_msg->angular.z);
 }
 
+void lidar_scan_callback(const float *range_to_send,
+        const float *intensity_to_send,
+        const double start_angle,
+        const double end_angle)
+{
+    static sensor_msgs__msg__LaserScan scan;
+
+    char frame_id[50];
+    snprintf(frame_id, sizeof(frame_id), "%s/lds_01_link", CONFIG_ROS_NAMESPACE);
+    scan.header.frame_id.data = frame_id;
+    scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
+    scan.header.stamp.nanosec = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
+
+    double angle_increment = 0;
+    if (start_angle > end_angle) {
+        angle_increment = (6.28 - start_angle + end_angle) / (double)NB_POINTS;
+    } else {
+        angle_increment = (end_angle - start_angle) / (double)NB_POINTS;
+    }
+
+    scan.angle_increment = angle_increment;
+    scan.time_increment = 0;
+    scan.scan_time = 0.1;
+    scan.range_min = 0.02;
+    scan.range_max = 12;
+
+    memcpy(scan.ranges.data, range_to_send, NB_POINTS * sizeof(float));
+    memcpy(scan.intensities.data, intensity_to_send, NB_POINTS * sizeof(float));
+    scan.ranges.size = NB_POINTS;
+    scan.intensities.size = NB_POINTS;
+
+    scan.angle_min = start_angle;
+    scan.angle_max = end_angle;
+
+    if (agent_connected) {
+        if (rcl_publish(&scan_publisher, &scan, NULL) != RCL_RET_OK) {
+            LOG_ERR("Failed to publish message");
+        }
+    }
+}
+
 void send_odometry_callback(float x, float y, float theta)
 {
     // Convert x, y, theta to quaternion
-    float cy = cos((float)theta * 0.5);
-    float sy = sin((float)theta * 0.5);
+    float cy = cos((double)theta * 0.5);
+    float sy = sin((double)theta * 0.5);
     float cp = cos(0.0 * 0.5);
     float sp = sin(0.0 * 0.5);
     float cr = cos(0.0 * 0.5);
@@ -61,8 +111,10 @@ void send_odometry_callback(float x, float y, float theta)
     pose_stamped_msg.pose.orientation.y = q2;
     pose_stamped_msg.pose.orientation.z = q3;
 
-    if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
-        printf("Failed to publish odometry message\n");
+    if (agent_connected) {
+        if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
+            LOG_ERR("Failed to publish odometry message");
+        }
     }
 }
 
@@ -79,7 +131,6 @@ void init_odometry_publisher(rcl_node_t *node)
 
 void init_scan_publisher(rcl_node_t *node)
 {
-    rcl_publisher_t scan_publisher;
     char scan_topic_name[50];
     snprintf(scan_topic_name, sizeof(scan_topic_name), "/%s/scan_raw", CONFIG_ROS_NAMESPACE);
     static rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
@@ -101,15 +152,16 @@ void init_cmd_vel_subscriber(rcl_node_t *node)
             cmd_vel_topic_name);
 }
 
-void init_micro_ros_node(void)
+int init_micro_ros_node(void)
 {
+    int ret;
     rcl_allocator_t allocator = rcl_get_default_allocator();
     rclc_support_t support;
 
     // Initialize micro-ROS with options
     rcl_init_options_t init_options = rcl_get_zero_initialized_init_options();
-    rcl_init_options_init(&init_options, allocator);
-    rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID);
+    ret = rcl_init_options_init(&init_options, allocator);
+    ret = rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID);
 
     rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator);
 
@@ -135,18 +187,26 @@ void init_micro_ros_node(void)
     rmw_uros_sync_session(1000);
     ros_timestamp = rmw_uros_epoch_millis() - k_uptime_get();
 
-    // Initialize motor interface
+    // Initialize base interface
     struct base_interface_callbacks base_callback;
     base_callback.send_odometry_callback = send_odometry_callback;
 
     init_base_interface(&base_callback);
+
+    // Initialize scan
+    struct scan_callbacks scan_callback;
+    scan_callback.lidar_scan_callback = lidar_scan_callback;
+
+    init_scan(&scan_callback);
+
+    return ret;
 }
 
 void spin_micro_ros_node(void)
 {
     while (1) {
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
-        usleep(10000);
+        k_usleep(10000);
     }
 }
 
