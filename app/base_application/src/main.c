@@ -1,5 +1,4 @@
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 #include <zephyr/net/net_context.h>
 #include <zephyr/net/net_core.h>
@@ -7,17 +6,8 @@
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/wifi_mgmt.h>
 
-#include <rcl/error_handling.h>
-#include <rcl/rcl.h>
-
-#include <rclc/rclc.h>
-#include <rmw_microros/rmw_microros.h>
-
 #include <microros_transports.h>
-
-#include <math.h>
-#include <stdio.h>
-#include <unistd.h>
+#include <rmw_microros/rmw_microros.h>
 
 #include "common.h"
 #include "micro_ros_node.h"
@@ -116,4 +106,9 @@ int main()
 
     // Initialize micro-ROS node
     init_micro_ros_node();
+
+    while (1) {
+        gpio_pin_toggle_dt(&led);
+        k_sleep(K_MSEC(1000));
+    }
 }
