@@ -25,32 +25,9 @@
 // Wireless management
 static struct net_mgmt_event_callback wifi_shell_mgmt_cb;
 
-#define RCCHECK(fn)                                                                                \
-    {                                                                                              \
-        rcl_ret_t temp_rc = fn;                                                                    \
-        if ((temp_rc != RCL_RET_OK)) {                                                             \
-            printf("Failed status on line %d: %d. Aborting.\n", __LINE__, (int)temp_rc);           \
-            return 1;                                                                              \
-        }                                                                                          \
-    }
-#define RCSOFTCHECK(fn)                                                                            \
-    {                                                                                              \
-        rcl_ret_t temp_rc = fn;                                                                    \
-        if ((temp_rc != RCL_RET_OK)) {                                                             \
-            printf("Failed status on line %d: %d. Continuing.\n", __LINE__, (int)temp_rc);         \
-        }                                                                                          \
-    }
-
 // LED0
 #define LED0_NODE DT_ALIAS(led0)
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
-
-// Network
-#define DHCP_OPTION_NTP (42)
-static uint8_t ntp_server[4];
-
-static struct net_mgmt_event_callback mgmt_cb;
-static struct net_dhcpv4_option_callback dhcp_cb;
 
 static bool connected = 0;
 
@@ -61,60 +38,6 @@ static void wifi_mgmt_event_handler(
         printk("IPv4 address added\n");
         connected = 1;
     }
-}
-
-static void start_dhcpv4_client(struct net_if *iface, void *user_data)
-{
-    ARG_UNUSED(user_data);
-
-    printk("Start on %s: index=%d", net_if_get_device(iface)->name, net_if_get_by_iface(iface));
-    net_dhcpv4_start(iface);
-}
-
-static void handler(struct net_mgmt_event_callback *cb, uint32_t mgmt_event, struct net_if *iface)
-{
-    int i = 0;
-
-    if (mgmt_event != NET_EVENT_IPV4_ADDR_ADD) {
-        return;
-    }
-
-    for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
-        char buf[NET_IPV4_ADDR_LEN];
-
-        if (iface->config.ip.ipv4->unicast[i].ipv4.addr_type != NET_ADDR_DHCP) {
-            continue;
-        }
-
-        printk("   Address[%d]: %s",
-                net_if_get_by_iface(iface),
-                net_addr_ntop(AF_INET,
-                        &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
-                        buf,
-                        sizeof(buf)));
-        printk("    Subnet[%d]: %s",
-                net_if_get_by_iface(iface),
-                net_addr_ntop(
-                        AF_INET, &iface->config.ip.ipv4->unicast[i].netmask, buf, sizeof(buf)));
-        printk("    Router[%d]: %s",
-                net_if_get_by_iface(iface),
-                net_addr_ntop(AF_INET, &iface->config.ip.ipv4->gw, buf, sizeof(buf)));
-        printk("Lease time[%d]: %u seconds",
-                net_if_get_by_iface(iface),
-                iface->config.dhcpv4.lease_time);
-    }
-
-    connected = 1;
-}
-
-static void option_handler(struct net_dhcpv4_option_callback *cb,
-        size_t length,
-        enum net_dhcpv4_msg_type msg_type,
-        struct net_if *iface)
-{
-    char buf[NET_IPV4_ADDR_LEN];
-
-    printk("DHCP Option %d: %s", cb->option, net_addr_ntop(AF_INET, cb->data, buf, sizeof(buf)));
 }
 
 int main()
