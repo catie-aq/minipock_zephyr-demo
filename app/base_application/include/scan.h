@@ -15,13 +15,13 @@ struct lidar_data {
     double end_angle;
 };
 
-struct scan_callbacks {
+struct scan_trigger {
     void (*lidar_scan_callback)(const float *range_to_send,
             const float *intensity_to_send,
             const double start_angle,
             const double end_angle);
 };
 
-int init_scan(struct scan_callbacks *callbacks);
+int init_scan(struct scan_trigger *trigger);
 
 #endif // SCAN_H

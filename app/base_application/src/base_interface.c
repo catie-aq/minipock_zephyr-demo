@@ -10,7 +10,7 @@
 
 LOG_MODULE_REGISTER(base_interface, LOG_LEVEL_INF);
 
-static struct base_interface_callbacks *base_interface_callbacks;
+static struct base_interface_trigger *base_interface_trigger;
 
 // Save timestamp of last message
 static uint64_t last_msg_timestamp;
@@ -38,9 +38,8 @@ void process_odometry_msg()
             continue;
         }
 
-        if (base_interface_callbacks->send_odometry_callback != NULL) {
-            base_interface_callbacks->send_odometry_callback(
-                    (float)msg.x, (float)msg.y, (float)msg.theta);
+        if (base_interface_trigger->odometry_callback != NULL) {
+            base_interface_trigger->odometry_callback((float)msg.x, (float)msg.y, (float)msg.theta);
         }
     }
 }
@@ -98,11 +97,11 @@ void send_command(float linear_x,
     }
 }
 
-int init_base_interface(struct base_interface_callbacks *callbacks)
+int init_base_interface(struct base_interface_trigger *trigger)
 {
     int ret;
 
-    base_interface_callbacks = callbacks;
+    base_interface_trigger = trigger;
 
     // Init UART
     if (!device_is_ready(uart_dev)) {
