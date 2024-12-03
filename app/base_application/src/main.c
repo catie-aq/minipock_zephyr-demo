@@ -100,8 +100,6 @@ int main()
         k_sleep(K_SECONDS(1)); // Sleep for 1 second
     }
 
-    agent_connected = true;
-
     printk("\nAgent found!\n");
 
     // Initialize micro-ROS node

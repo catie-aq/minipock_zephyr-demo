@@ -1,4 +1,3 @@
-#include "common.h"
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -9,7 +8,7 @@
 
 LOG_MODULE_REGISTER(scan, LOG_LEVEL_INF);
 
-static struct scan_callbacks *scan_callbacks;
+static struct scan_trigger *scan_trigger;
 
 static struct lidar_data lidar_msg[NB_MSG];
 int lidar_msg_index = 0;
@@ -62,8 +61,8 @@ void send_lidar_data(void *, void *, void *)
                 }
             }
 
-            if (scan_callbacks->lidar_scan_callback != NULL) {
-                scan_callbacks->lidar_scan_callback(range_to_send,
+            if (scan_trigger->lidar_scan_callback != NULL) {
+                scan_trigger->lidar_scan_callback(range_to_send,
                         intensity_to_send,
                         lidar_msg[0].start_angle,
                         lidar_msg[NB_MSG - 1].end_angle);
@@ -72,11 +71,11 @@ void send_lidar_data(void *, void *, void *)
     }
 }
 
-int init_scan(struct scan_callbacks *callbacks)
+int init_scan(struct scan_trigger *trigger)
 {
     int ret = 0;
 
-    scan_callbacks = callbacks;
+    scan_trigger = trigger;
 
     // Initialize LiDAR
     if (!device_is_ready(lidar)) {

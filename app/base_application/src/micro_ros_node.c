@@ -10,18 +10,24 @@
 #include <zephyr/logging/log.h>
 
 #include "base_interface.h"
-#include "common.h"
 #include "micro_ros_node.h"
 #include "scan.h"
 
 LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_INF);
 
-rclc_executor_t executor;
-rcl_publisher_t odom_publisher;
-rcl_publisher_t scan_publisher;
-rcl_subscription_t cmd_vel_subscriber;
-geometry_msgs__msg__Twist cmd_vel_twist_msg;
-uint64_t ros_timestamp;
+static rclc_executor_t executor;
+static rcl_publisher_t odom_publisher;
+static rcl_publisher_t scan_publisher;
+static rcl_subscription_t cmd_vel_subscriber;
+static rcl_allocator_t allocator;
+static rclc_support_t support;
+static rcl_node_t node;
+
+static struct base_interface_trigger base_callback;
+static struct scan_trigger scan_callback;
+
+static geometry_msgs__msg__Twist cmd_vel_twist_msg;
+static uint64_t ros_timestamp;
 
 void subscription_callback(const void *msgin)
 {
@@ -69,10 +75,8 @@ void lidar_scan_callback(const float *range_to_send,
     scan.angle_min = start_angle;
     scan.angle_max = end_angle;
 
-    if (agent_connected) {
-        if (rcl_publish(&scan_publisher, &scan, NULL) != RCL_RET_OK) {
-            LOG_ERR("Failed to publish message");
-        }
+    if (rcl_publish(&scan_publisher, &scan, NULL) != RCL_RET_OK) {
+        LOG_ERR("Failed to publish message");
     }
 }
 
@@ -111,10 +115,8 @@ void send_odometry_callback(float x, float y, float theta)
     pose_stamped_msg.pose.orientation.y = q2;
     pose_stamped_msg.pose.orientation.z = q3;
 
-    if (agent_connected) {
-        if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
-            LOG_ERR("Failed to publish odometry message");
-        }
+    if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
+        LOG_ERR("Failed to publish odometry message");
     }
 }
 
@@ -154,20 +156,31 @@ void init_cmd_vel_subscriber(rcl_node_t *node)
 
 int init_micro_ros_node(void)
 {
-    int ret;
-    rcl_allocator_t allocator = rcl_get_default_allocator();
-    rclc_support_t support;
+    allocator = rcl_get_default_allocator();
 
     // Initialize micro-ROS with options
     rcl_init_options_t init_options = rcl_get_zero_initialized_init_options();
-    ret = rcl_init_options_init(&init_options, allocator);
-    ret = rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID);
+    if (rcl_init_options_init(&init_options, allocator) != RCL_RET_OK) {
+        LOG_ERR("Failed to initialize init options");
+        return -1;
+    }
 
-    rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator);
+    if (rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID) != RCL_RET_OK) {
+        LOG_ERR("Failed to set domain id");
+        return -1;
+    }
+
+    if (rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator)
+            != RCL_RET_OK) {
+        LOG_ERR("Failed to initialize support");
+        return -1;
+    }
 
     // Create node
-    rcl_node_t node;
-    rclc_node_init_default(&node, CONFIG_ROS_NAMESPACE, "", &support);
+    if (rclc_node_init_default(&node, CONFIG_ROS_NAMESPACE, "", &support) != RCL_RET_OK) {
+        LOG_ERR("Failed to create node");
+        return -1;
+    }
 
     // Initialize publishers
     init_odometry_publisher(&node);
@@ -176,30 +189,34 @@ int init_micro_ros_node(void)
 
     // Create executor
     executor = rclc_executor_get_zero_initialized_executor();
-    rclc_executor_init(&executor, &support.context, 1, &allocator);
-    rclc_executor_add_subscription(&executor,
-            &cmd_vel_subscriber,
-            &cmd_vel_twist_msg,
-            &subscription_callback,
-            ON_NEW_DATA);
+    if (rclc_executor_init(&executor, &support.context, 1, &allocator)) {
+        LOG_ERR("Failed to initialize executor");
+        return -1;
+    }
+    if (rclc_executor_add_subscription(&executor,
+                &cmd_vel_subscriber,
+                &cmd_vel_twist_msg,
+                &subscription_callback,
+                ON_NEW_DATA)) {
+        LOG_ERR("Failed to add subscription to executor");
+        return -1;
+    }
 
     // Synchronize time
     rmw_uros_sync_session(1000);
     ros_timestamp = rmw_uros_epoch_millis() - k_uptime_get();
 
     // Initialize base interface
-    struct base_interface_callbacks base_callback;
-    base_callback.send_odometry_callback = send_odometry_callback;
+    base_callback.odometry_callback = send_odometry_callback;
 
     init_base_interface(&base_callback);
 
     // Initialize scan
-    struct scan_callbacks scan_callback;
     scan_callback.lidar_scan_callback = lidar_scan_callback;
 
     init_scan(&scan_callback);
 
-    return ret;
+    return 0;
 }
 
 void spin_micro_ros_node(void)
@@ -210,4 +227,4 @@ void spin_micro_ros_node(void)
     }
 }
 
-K_THREAD_DEFINE(micro_ros_spin_thread, 1024, spin_micro_ros_node, NULL, NULL, NULL, 7, 0, 0);
+K_THREAD_DEFINE(micro_ros_spin_thread, 8192, spin_micro_ros_node, NULL, NULL, NULL, 3, 0, 0);
