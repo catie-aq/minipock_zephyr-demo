@@ -32,8 +32,6 @@ static struct scan_trigger scan_callback;
 static geometry_msgs__msg__Twist cmd_vel_twist_msg;
 static uint64_t ros_timestamp;
 
-bool first_init = true;
-
 enum states { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED } state;
 
 void subscription_callback(const void *msgin)
@@ -211,22 +209,7 @@ int init_micro_ros_transport(void)
 
 int init_micro_ros_node(void)
 {
-    if (first_init) {
-        init_options = rcl_get_zero_initialized_init_options();
-        allocator = rcl_get_default_allocator();
-
-        // Initialize micro-ROS with options
-        if (rcl_init_options_init(&init_options, allocator) != RCL_RET_OK) {
-            LOG_ERR("Failed to initialize init options");
-        }
-
-        if (rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID) != RCL_RET_OK) {
-            LOG_ERR("Failed to set domain id");
-        }
-    }
-
     int ret = rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator);
-    // int ret = rclc_support_init(&support, 0, NULL, &allocator);
     if (ret != RCL_RET_OK) {
         LOG_ERR("Failed to initialize support %d", ret);
         return -1;
@@ -262,19 +245,6 @@ int init_micro_ros_node(void)
     rmw_uros_sync_session(1000);
     ros_timestamp = rmw_uros_epoch_millis() - k_uptime_get();
 
-    if (first_init) {
-        // Initialize base interface
-        base_callback.odometry_callback = send_odometry_callback;
-
-        init_base_interface(&base_callback);
-
-        // Initialize scan
-        scan_callback.lidar_scan_callback = lidar_scan_callback;
-
-        init_scan(&scan_callback);
-    }
-
-    first_init = false;
     state = WAITING_AGENT;
 
     return 0;
@@ -282,6 +252,27 @@ int init_micro_ros_node(void)
 
 void spin_micro_ros_node(void)
 {
+    init_options = rcl_get_zero_initialized_init_options();
+    allocator = rcl_get_default_allocator();
+
+    // Initialize micro-ROS with options
+    if (rcl_init_options_init(&init_options, allocator) != RCL_RET_OK) {
+        LOG_ERR("Failed to initialize init options");
+    }
+
+    if (rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID) != RCL_RET_OK) {
+        LOG_ERR("Failed to set domain id");
+    }
+
+    // Initialize base interface
+    base_callback.odometry_callback = send_odometry_callback;
+
+    init_base_interface(&base_callback);
+
+    // Initialize scan
+    scan_callback.lidar_scan_callback = lidar_scan_callback;
+
+    init_scan(&scan_callback);
 
     state = WAITING_AGENT;
 
