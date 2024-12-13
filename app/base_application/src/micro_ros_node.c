@@ -210,8 +210,9 @@ int init_micro_ros_transport(void)
 int init_micro_ros_node(void)
 {
     // Initialize init_options
-    if (rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator) != RCL_RET_OK) {
-        LOG_ERR("Failed to initialize support %d", ret);
+    if (rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator)
+            != RCL_RET_OK) {
+        LOG_ERR("Failed to initialize support");
         return -1;
     }
 
