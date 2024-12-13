@@ -24,6 +24,7 @@ static rcl_allocator_t allocator;
 static rclc_support_t support;
 static rcl_node_t node;
 static rcl_init_options_t init_options;
+static rcl_client_t client;
 
 static struct base_interface_trigger base_callback;
 static struct scan_trigger scan_callback;
@@ -81,11 +82,11 @@ void lidar_scan_callback(const float *range_to_send,
     scan.angle_min = start_angle;
     scan.angle_max = end_angle;
 
-    // if (state == AGENT_CONNECTED) {
-    //     if (rcl_publish(&scan_publisher, &scan, NULL) != RCL_RET_OK) {
-    //         LOG_ERR("Failed to publish message");
-    //     }
-    // }
+    if (state == AGENT_CONNECTED) {
+        if (rcl_publish(&scan_publisher, &scan, NULL) != RCL_RET_OK) {
+            LOG_ERR("Failed to publish message");
+        }
+    }
 }
 
 void send_odometry_callback(float x, float y, float theta)
@@ -123,11 +124,11 @@ void send_odometry_callback(float x, float y, float theta)
     pose_stamped_msg.pose.orientation.y = q2;
     pose_stamped_msg.pose.orientation.z = q3;
 
-    // if (state == AGENT_CONNECTED) {
-    //     if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
-    //         LOG_ERR("Failed to publish odometry message");
-    //     }
-    // }
+    if (state == AGENT_CONNECTED) {
+        if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
+            LOG_ERR("Failed to publish odometry message");
+        }
+    }
 }
 
 void init_odometry_publisher(rcl_node_t *node)
@@ -222,8 +223,6 @@ int init_micro_ros_node(void)
         if (rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID) != RCL_RET_OK) {
             LOG_ERR("Failed to set domain id");
         }
-
-        first_init = false;
     }
 
     int ret = rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator);
@@ -259,20 +258,23 @@ int init_micro_ros_node(void)
         return -1;
     }
 
-    // // Synchronize time
-    // rmw_uros_sync_session(1000);
-    // ros_timestamp = rmw_uros_epoch_millis() - k_uptime_get();
+    // Synchronize time
+    rmw_uros_sync_session(1000);
+    ros_timestamp = rmw_uros_epoch_millis() - k_uptime_get();
 
-    // // Initialize base interface
-    // base_callback.odometry_callback = send_odometry_callback;
+    if (first_init) {
+        // Initialize base interface
+        base_callback.odometry_callback = send_odometry_callback;
 
-    // init_base_interface(&base_callback);
+        init_base_interface(&base_callback);
 
-    // // Initialize scan
-    // scan_callback.lidar_scan_callback = lidar_scan_callback;
+        // Initialize scan
+        scan_callback.lidar_scan_callback = lidar_scan_callback;
 
-    // init_scan(&scan_callback);
+        init_scan(&scan_callback);
+    }
 
+    first_init = false;
     state = WAITING_AGENT;
 
     return 0;
