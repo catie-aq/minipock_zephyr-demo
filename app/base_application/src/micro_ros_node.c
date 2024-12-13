@@ -167,8 +167,9 @@ void init_cmd_vel_subscriber(rcl_node_t *node)
 
 void update_service_callback(const void *msgin)
 {
-    // const minipock_interfaces__srv__Update_Request *request = (const minipock_interfaces__srv__Update_Request *)msgin;
-    // minipock_interfaces__srv__Update_Response *response = (minipock_interfaces__srv__Update_Response *)msgout;
+    // const minipock_interfaces__srv__Update_Request *request = (const
+    // minipock_interfaces__srv__Update_Request *)msgin; minipock_interfaces__srv__Update_Response
+    // *response = (minipock_interfaces__srv__Update_Response *)msgout;
 
     // response->success = 1;
 }
@@ -251,7 +252,11 @@ int init_micro_ros_node(void)
     init_cmd_vel_subscriber(&node);
 
     // Create client
-    if (rclc_client_init_default(&client, &node, ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_interfaces, srv, Update), "/update") != RCL_RET_OK) {
+    if (rclc_client_init_default(&client,
+                &node,
+                ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_interfaces, srv, Update),
+                "/update")
+            != RCL_RET_OK) {
         LOG_ERR("Failed to create client");
         return -1;
     }
