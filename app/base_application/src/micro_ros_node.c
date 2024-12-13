@@ -165,6 +165,14 @@ void init_cmd_vel_subscriber(rcl_node_t *node)
             cmd_vel_topic_name);
 }
 
+void update_service_callback(const void *msgin)
+{
+    // const minipock_interfaces__srv__Update_Request *request = (const minipock_interfaces__srv__Update_Request *)msgin;
+    // minipock_interfaces__srv__Update_Response *response = (minipock_interfaces__srv__Update_Response *)msgout;
+
+    // response->success = 1;
+}
+
 void destroy_micro_ros_node(void)
 {
     LOG_INF("Destroying micro-ROS node");
@@ -242,20 +250,38 @@ int init_micro_ros_node(void)
     init_scan_publisher(&node);
     init_cmd_vel_subscriber(&node);
 
-    // Initialize executor
+    // Create client
+    if (rclc_client_init_default(&client, &node, ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_interfaces, srv, Update), "/update") != RCL_RET_OK) {
+        LOG_ERR("Failed to create client");
+        return -1;
+    }
+
+    // Create executor
     executor = rclc_executor_get_zero_initialized_executor();
     if (rclc_executor_init(&executor, &support.context, 1, &allocator)) {
         LOG_ERR("Failed to initialize executor");
         return -1;
     }
 
-    // Add subscriber to executor
+    // Add subscribers to executor
     if (rclc_executor_add_subscription(&executor,
                 &cmd_vel_subscriber,
                 &cmd_vel_twist_msg,
                 &subscription_callback,
                 ON_NEW_DATA)) {
         LOG_ERR("Failed to add subscription to executor");
+        return -1;
+    }
+
+    // Add client to executor
+    if (rclc_executor_add_client(&executor, &client, &res, update_service_callback) != RCL_RET_OK) {
+        LOG_ERR("Failed to add client to executor");
+        return -1;
+    }
+
+    // rcl_send_request(&client, &request, &response);
+    if (rcl_send_request(&client, &req, &res) != RCL_RET_OK) {
+        LOG_ERR("Failed to send request");
         return -1;
     }
 
