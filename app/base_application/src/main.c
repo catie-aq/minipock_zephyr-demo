@@ -6,9 +6,6 @@
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/wifi_mgmt.h>
 
-#include <microros_transports.h>
-#include <rmw_microros/rmw_microros.h>
-
 #include "common.h"
 #include "micro_ros_node.h"
 
@@ -83,27 +80,7 @@ int main()
     }
     printf("Connection OK\n");
 
-    k_sleep(K_SECONDS(5));
-
-    // Init micro-ROS
-    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.2", "8888" };
-
-    rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
-            (void *)&agent_param,
-            zephyr_transport_open,
-            zephyr_transport_close,
-            zephyr_transport_write,
-            zephyr_transport_read);
-
-    while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
-        printk("Waiting for agent...\n");
-        k_sleep(K_SECONDS(1)); // Sleep for 1 second
-    }
-
-    printk("\nAgent found!\n");
-
-    // Initialize micro-ROS node
-    init_micro_ros_node();
+    init_micro_ros_transport();
 
     while (1) {
         gpio_pin_toggle_dt(&led);

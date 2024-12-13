@@ -2,6 +2,7 @@
 
 #include <geometry_msgs/msg/pose_stamped.h>
 #include <geometry_msgs/msg/twist.h>
+#include <microros_transports.h>
 #include <rcl/init_options.h>
 #include <rclc/executor.h>
 #include <rclc/rclc.h>
@@ -13,7 +14,7 @@
 #include "micro_ros_node.h"
 #include "scan.h"
 
-LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_DBG);
 
 static rclc_executor_t executor;
 static rcl_publisher_t odom_publisher;
@@ -22,12 +23,16 @@ static rcl_subscription_t cmd_vel_subscriber;
 static rcl_allocator_t allocator;
 static rclc_support_t support;
 static rcl_node_t node;
+static rcl_init_options_t init_options;
+static rcl_client_t client;
 
 static struct base_interface_trigger base_callback;
 static struct scan_trigger scan_callback;
 
 static geometry_msgs__msg__Twist cmd_vel_twist_msg;
 static uint64_t ros_timestamp;
+
+enum states { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED } state;
 
 void subscription_callback(const void *msgin)
 {
@@ -75,8 +80,10 @@ void lidar_scan_callback(const float *range_to_send,
     scan.angle_min = start_angle;
     scan.angle_max = end_angle;
 
-    if (rcl_publish(&scan_publisher, &scan, NULL) != RCL_RET_OK) {
-        LOG_ERR("Failed to publish message");
+    if (state == AGENT_CONNECTED) {
+        if (rcl_publish(&scan_publisher, &scan, NULL) != RCL_RET_OK) {
+            LOG_ERR("Failed to publish message");
+        }
     }
 }
 
@@ -115,8 +122,10 @@ void send_odometry_callback(float x, float y, float theta)
     pose_stamped_msg.pose.orientation.y = q2;
     pose_stamped_msg.pose.orientation.z = q3;
 
-    if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
-        LOG_ERR("Failed to publish odometry message");
+    if (state == AGENT_CONNECTED) {
+        if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
+            LOG_ERR("Failed to publish odometry message");
+        }
     }
 }
 
@@ -154,29 +163,60 @@ void init_cmd_vel_subscriber(rcl_node_t *node)
             cmd_vel_topic_name);
 }
 
+void destroy_micro_ros_node(void)
+{
+    LOG_INF("Destroying micro-ROS node");
+
+    rmw_context_t *rmw_context = rcl_context_get_rmw_context(&support.context);
+    (void)rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0);
+
+    if (rcl_publisher_fini(&odom_publisher, &node) != RCL_RET_OK) {
+        LOG_ERR("Failed to destroy odometry publisher");
+    }
+
+    if (rcl_publisher_fini(&scan_publisher, &node) != RCL_RET_OK) {
+        LOG_ERR("Failed to destroy scan publisher");
+    }
+
+    if (rcl_subscription_fini(&cmd_vel_subscriber, &node) != RCL_RET_OK) {
+        LOG_ERR("Failed to destroy cmd_vel subscriber");
+    }
+
+    if (rclc_executor_fini(&executor) != RCL_RET_OK) {
+        LOG_ERR("Failed to destroy executor");
+    }
+
+    if (rcl_node_fini(&node) != RCL_RET_OK) {
+        LOG_ERR("Failed to destroy node");
+    }
+
+    if (rclc_support_fini(&support) != RCL_RET_OK) {
+        LOG_ERR("Failed to destroy support");
+    }
+}
+
+int init_micro_ros_transport(void)
+{
+    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.3", "8888" };
+
+    rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
+            (void *)&agent_param,
+            zephyr_transport_open,
+            zephyr_transport_close,
+            zephyr_transport_write,
+            zephyr_transport_read);
+}
+
 int init_micro_ros_node(void)
 {
-    allocator = rcl_get_default_allocator();
-
-    // Initialize micro-ROS with options
-    rcl_init_options_t init_options = rcl_get_zero_initialized_init_options();
-    if (rcl_init_options_init(&init_options, allocator) != RCL_RET_OK) {
-        LOG_ERR("Failed to initialize init options");
-        return -1;
-    }
-
-    if (rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID) != RCL_RET_OK) {
-        LOG_ERR("Failed to set domain id");
-        return -1;
-    }
-
+    // Initialize init_options
     if (rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator)
             != RCL_RET_OK) {
         LOG_ERR("Failed to initialize support");
         return -1;
     }
 
-    // Create node
+    // Initialize node
     if (rclc_node_init_default(&node, CONFIG_ROS_NAMESPACE, "", &support) != RCL_RET_OK) {
         LOG_ERR("Failed to create node");
         return -1;
@@ -187,12 +227,14 @@ int init_micro_ros_node(void)
     init_scan_publisher(&node);
     init_cmd_vel_subscriber(&node);
 
-    // Create executor
+    // Initialize executor
     executor = rclc_executor_get_zero_initialized_executor();
     if (rclc_executor_init(&executor, &support.context, 1, &allocator)) {
         LOG_ERR("Failed to initialize executor");
         return -1;
     }
+
+    // Add subscriber to executor
     if (rclc_executor_add_subscription(&executor,
                 &cmd_vel_subscriber,
                 &cmd_vel_twist_msg,
@@ -206,6 +248,23 @@ int init_micro_ros_node(void)
     rmw_uros_sync_session(1000);
     ros_timestamp = rmw_uros_epoch_millis() - k_uptime_get();
 
+    return 0;
+}
+
+void spin_micro_ros_node(void)
+{
+    init_options = rcl_get_zero_initialized_init_options();
+    allocator = rcl_get_default_allocator();
+
+    // Initialize micro-ROS with options
+    if (rcl_init_options_init(&init_options, allocator) != RCL_RET_OK) {
+        LOG_ERR("Failed to initialize init options");
+    }
+
+    if (rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID) != RCL_RET_OK) {
+        LOG_ERR("Failed to set domain id");
+    }
+
     // Initialize base interface
     base_callback.odometry_callback = send_odometry_callback;
 
@@ -216,14 +275,44 @@ int init_micro_ros_node(void)
 
     init_scan(&scan_callback);
 
-    return 0;
-}
+    state = WAITING_AGENT;
 
-void spin_micro_ros_node(void)
-{
     while (1) {
-        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
-        k_usleep(10000);
+        switch (state) {
+            case WAITING_AGENT:
+                if (rmw_uros_ping_agent(100, 1) == RMW_RET_OK) {
+                    LOG_WRN("Agent found");
+                    state = AGENT_AVAILABLE;
+                }
+                break;
+            case AGENT_AVAILABLE:
+                if (init_micro_ros_node() == 0) {
+                    LOG_WRN("Micro-ROS node initialized");
+                    state = AGENT_CONNECTED;
+                } else {
+                    LOG_ERR("Failed to initialize micro-ROS node");
+                    state = AGENT_DISCONNECTED;
+                }
+                break;
+            case AGENT_CONNECTED:
+                int ret = rmw_uros_ping_agent(1, 100);
+                if (ret != RMW_RET_OK) {
+                    state = AGENT_DISCONNECTED;
+                }
+                if (state == AGENT_CONNECTED) {
+                    LOG_DBG("Spinning micro-ROS node");
+                    rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
+                }
+                break;
+            case AGENT_DISCONNECTED:
+                LOG_WRN("Agent disconnected");
+                destroy_micro_ros_node();
+                state = WAITING_AGENT;
+                break;
+            default:
+                break;
+        }
+        k_msleep(1000);
     }
 }
 
