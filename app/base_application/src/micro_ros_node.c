@@ -209,13 +209,13 @@ int init_micro_ros_transport(void)
 
 int init_micro_ros_node(void)
 {
-    int ret = rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator);
-    if (ret != RCL_RET_OK) {
+    // Initialize init_options
+    if (rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator) != RCL_RET_OK) {
         LOG_ERR("Failed to initialize support %d", ret);
         return -1;
     }
 
-    // Create node
+    // Initialize node
     if (rclc_node_init_default(&node, CONFIG_ROS_NAMESPACE, "", &support) != RCL_RET_OK) {
         LOG_ERR("Failed to create node");
         return -1;
@@ -226,12 +226,14 @@ int init_micro_ros_node(void)
     init_scan_publisher(&node);
     init_cmd_vel_subscriber(&node);
 
-    // Create executor
+    // Initialize executor
     executor = rclc_executor_get_zero_initialized_executor();
     if (rclc_executor_init(&executor, &support.context, 1, &allocator)) {
         LOG_ERR("Failed to initialize executor");
         return -1;
     }
+
+    // Add subscriber to executor
     if (rclc_executor_add_subscription(&executor,
                 &cmd_vel_subscriber,
                 &cmd_vel_twist_msg,
@@ -244,8 +246,6 @@ int init_micro_ros_node(void)
     // Synchronize time
     rmw_uros_sync_session(1000);
     ros_timestamp = rmw_uros_epoch_millis() - k_uptime_get();
-
-    state = WAITING_AGENT;
 
     return 0;
 }
