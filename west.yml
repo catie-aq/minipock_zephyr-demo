@@ -27,7 +27,7 @@ manifest:
           - hostap
     - name: micro_ros_zephyr_module
       remote: catie-6tron
-      revision: fix/zephyr-3.2-header-jazzy
+      revision: minipock-jazzy
       path: modules/micro_ros_zephyr_module
     - name: zephyr_hls-lfcd2
       remote: catie-6tron
