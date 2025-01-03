@@ -76,7 +76,7 @@ int main()
 
     while (!connected) {
         // printf("Waiting for connection\n");
-        usleep(10000);
+        k_usleep(10000);
     }
     printf("Connection OK\n");
 
