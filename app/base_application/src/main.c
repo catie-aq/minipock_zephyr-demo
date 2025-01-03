@@ -1,3 +1,4 @@
+#include <app_version.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/net/net_context.h>
@@ -30,6 +31,8 @@ static void wifi_mgmt_event_handler(
 int main()
 {
     int ret;
+
+    printk("MiniPock Base Application v%s\n", APP_VERSION_STRING);
 
     // Init LED0
     if (!gpio_is_ready_dt(&led)) {
