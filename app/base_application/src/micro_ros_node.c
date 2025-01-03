@@ -9,6 +9,10 @@
 #include <rclc/rclc.h>
 #include <sensor_msgs/msg/laser_scan.h>
 #include <zephyr/logging/log.h>
+#include <micro_ros_utilities/string_utilities.h>
+
+#include <minipock_msgs/srv/trig_update.h>
+#include <minipock_msgs/srv/get_chunk.h>
 
 #include "base_interface.h"
 #include "micro_ros_node.h"
@@ -28,6 +32,12 @@ static rcl_client_t client;
 
 static struct base_interface_trigger base_callback;
 static struct scan_trigger scan_callback;
+
+minipock_msgs__srv__TrigUpdate_Request req;
+minipock_msgs__srv__TrigUpdate_Response res;
+
+minipock_msgs__srv__GetChunk_Request req_chunk;
+minipock_msgs__srv__GetChunk_Response res_chunk;
 
 static geometry_msgs__msg__Twist cmd_vel_twist_msg;
 static uint64_t ros_timestamp;
@@ -165,13 +175,57 @@ void init_cmd_vel_subscriber(rcl_node_t *node)
             cmd_vel_topic_name);
 }
 
+void update_chunk_received(const void *msgin)
+{
+    const minipock_msgs__srv__GetChunk_Response *in = (const minipock_msgs__srv__GetChunk_Response *)msgin;
+
+    LOG_DBG("Chunk received: %lld/%lld", in->chunk_id, in->chunk_checksum);
+}
+
 void update_service_callback(const void *msgin)
 {
-    // const minipock_interfaces__srv__Update_Request *request = (const
-    // minipock_interfaces__srv__Update_Request *)msgin; minipock_interfaces__srv__Update_Response
-    // *response = (minipock_interfaces__srv__Update_Response *)msgout;
+    const minipock_msgs__srv__TrigUpdate_Response *in = (const minipock_msgs__srv__TrigUpdate_Response *)msgin;
 
-    // response->success = 1;
+    if (in->success == 0 && in->new_version_available) {
+        LOG_DBG("New version: %d.%d.%d", in->new_version.major, in->new_version.minor, in->new_version.patch);   
+
+        if (rclc_executor_remove_client(&executor, &client) != RCL_RET_OK) {
+            LOG_ERR("Failed to remove client from executor");
+            return;
+        }
+
+        client = rcl_get_zero_initialized_client();
+
+        k_sleep(K_MSEC(10000));
+
+        if (rclc_client_init_default(&client,
+            &node,
+            ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_msgs, srv, GetChunk),
+            "/minipock_0/firmware_update/chunk")
+            != RCL_RET_OK) {
+                LOG_ERR("Failed to create client");
+                return;
+            }
+
+        if (rclc_executor_add_client(&executor, &client, &res, update_service_callback) != RCL_RET_OK) {
+            LOG_ERR("Failed to add client to executor");
+            return;
+        }
+
+        minipock_msgs__srv__GetChunk_Request__init(&req_chunk);
+
+        req_chunk.version.major = 2;
+        req_chunk.version.minor = 1;
+        req_chunk.version.patch = 0;
+
+        req_chunk.chunk_id = 0;
+        req_chunk.chunk_size = 256;
+
+        if (rcl_send_request(&client, &req_chunk, NULL) != RCL_RET_OK) {
+            LOG_ERR("Failed to send request");
+            return;
+        }
+    }
 }
 
 void destroy_micro_ros_node(void)
@@ -208,7 +262,7 @@ void destroy_micro_ros_node(void)
 
 int init_micro_ros_transport(void)
 {
-    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, "192.168.1.3", "8888" };
+    static zephyr_transport_params_t agent_param = { { 0, 0, 0 }, CONFIG_MICROROS_AGENT_IP, CONFIG_MICROROS_AGENT_PORT };
 
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)&agent_param,
@@ -216,6 +270,8 @@ int init_micro_ros_transport(void)
             zephyr_transport_close,
             zephyr_transport_write,
             zephyr_transport_read);
+
+    return 0;
 }
 
 int init_micro_ros_node(void)
@@ -254,8 +310,8 @@ int init_micro_ros_node(void)
     // Create client
     if (rclc_client_init_default(&client,
                 &node,
-                ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_interfaces, srv, Update),
-                "/update")
+                ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_msgs, srv, TrigUpdate),
+                "/minipock_0/firmware_update")
             != RCL_RET_OK) {
         LOG_ERR("Failed to create client");
         return -1;
@@ -263,7 +319,7 @@ int init_micro_ros_node(void)
 
     // Create executor
     executor = rclc_executor_get_zero_initialized_executor();
-    if (rclc_executor_init(&executor, &support.context, 1, &allocator)) {
+    if (rclc_executor_init(&executor, &support.context, 3, &allocator)) {
         LOG_ERR("Failed to initialize executor");
         return -1;
     }
@@ -281,12 +337,6 @@ int init_micro_ros_node(void)
     // Add client to executor
     if (rclc_executor_add_client(&executor, &client, &res, update_service_callback) != RCL_RET_OK) {
         LOG_ERR("Failed to add client to executor");
-        return -1;
-    }
-
-    // rcl_send_request(&client, &request, &response);
-    if (rcl_send_request(&client, &req, &res) != RCL_RET_OK) {
-        LOG_ERR("Failed to send request");
         return -1;
     }
 
@@ -314,7 +364,6 @@ int init_micro_ros_node(void)
 
 void spin_micro_ros_node(void)
 {
-
     state = WAITING_AGENT;
 
     while (1) {
@@ -328,6 +377,18 @@ void spin_micro_ros_node(void)
             case AGENT_AVAILABLE:
                 if (init_micro_ros_node() == 0) {
                     LOG_WRN("Micro-ROS node initialized");
+                    int64_t seq;
+
+                    minipock_msgs__srv__TrigUpdate_Request__init(&req);
+                    req.actual_version.major = 1;
+                    req.actual_version.minor = 1;
+                    req.actual_version.patch = 0;
+                    k_sleep(K_SECONDS(2));
+                    int ret = rcl_send_request(&client, &req, &seq);
+                    if (ret != RCL_RET_OK) {
+                        LOG_ERR("Failed to send request");
+                    }
+
                     state = AGENT_CONNECTED;
                 } else {
                     LOG_ERR("Failed to initialize micro-ROS node");
@@ -335,7 +396,7 @@ void spin_micro_ros_node(void)
                 }
                 break;
             case AGENT_CONNECTED:
-                int ret = rmw_uros_ping_agent(1, 100);
+                int ret = rmw_uros_ping_agent(100, 10);
                 if (ret != RMW_RET_OK) {
                     state = AGENT_DISCONNECTED;
                 }
@@ -346,6 +407,7 @@ void spin_micro_ros_node(void)
                 break;
             case AGENT_DISCONNECTED:
                 LOG_WRN("Agent disconnected");
+                // k_timer_stop(&my_timer);
                 destroy_micro_ros_node();
                 state = WAITING_AGENT;
                 break;
