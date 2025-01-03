@@ -56,9 +56,9 @@ int main()
 
     wifi_args.security = WIFI_SECURITY_TYPE_PSK;
     wifi_args.channel = 13;
-    wifi_args.psk = "";
+    wifi_args.psk = CONFIG_MICROROS_WIFI_PASSWORD;
     wifi_args.psk_length = strlen(wifi_args.psk);
-    wifi_args.ssid = "";
+    wifi_args.ssid = CONFIG_MICROROS_WIFI_SSID;
     wifi_args.ssid_length = strlen(wifi_args.ssid);
     wifi_args.timeout = 0;
 
