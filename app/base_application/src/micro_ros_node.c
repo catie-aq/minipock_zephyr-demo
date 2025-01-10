@@ -479,7 +479,7 @@ void spin_micro_ros_node(void)
             default:
                 break;
         }
-        k_msleep(1000);
+        k_msleep(100);
     }
 }
 
