@@ -29,6 +29,7 @@ static rclc_support_t support;
 static rcl_node_t node;
 static rcl_init_options_t init_options;
 static rcl_client_t client;
+static rcl_client_t client_update;
 
 static struct base_interface_trigger base_callback;
 static struct scan_trigger scan_callback;
@@ -180,7 +181,14 @@ void update_chunk_received(const void *msgin)
     const minipock_msgs__srv__GetChunk_Response *in
             = (const minipock_msgs__srv__GetChunk_Response *)msgin;
 
-    LOG_DBG("Chunk received: %lld/%lld", in->chunk_id, in->chunk_checksum);
+    LOG_DBG("Chunk received: %d", in->chunk_id);
+    LOG_DBG("Chunk Success: %d", in->success);
+    LOG_DBG("Chunk Checksum: %d", in->chunk_checksum);
+
+    if (in->success == 0) {
+        // TODO decode chunk
+        LOG_DBG("Message received");
+    }
 }
 
 void update_service_callback(const void *msgin)
@@ -194,30 +202,6 @@ void update_service_callback(const void *msgin)
                 in->new_version.minor,
                 in->new_version.patch);
 
-        if (rclc_executor_remove_client(&executor, &client) != RCL_RET_OK) {
-            LOG_ERR("Failed to remove client from executor");
-            return;
-        }
-
-        client = rcl_get_zero_initialized_client();
-
-        k_sleep(K_MSEC(10000));
-
-        if (rclc_client_init_default(&client,
-                    &node,
-                    ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_msgs, srv, GetChunk),
-                    "/minipock_0/firmware_update/chunk")
-                != RCL_RET_OK) {
-            LOG_ERR("Failed to create client");
-            return;
-        }
-
-        if (rclc_executor_add_client(&executor, &client, &res, update_service_callback)
-                != RCL_RET_OK) {
-            LOG_ERR("Failed to add client to executor");
-            return;
-        }
-
         minipock_msgs__srv__GetChunk_Request__init(&req_chunk);
 
         req_chunk.version.major = 2;
@@ -227,8 +211,12 @@ void update_service_callback(const void *msgin)
         req_chunk.chunk_id = 0;
         req_chunk.chunk_size = 256;
 
-        if (rcl_send_request(&client, &req_chunk, NULL) != RCL_RET_OK) {
-            LOG_ERR("Failed to send request");
+        int64_t seq;
+
+        int ret = rcl_send_request(&client_update, &req_chunk, &seq);
+
+        if (ret != RCL_RET_OK) {
+            LOG_ERR("Failed to send request %d", ret);
             return;
         }
     }
@@ -281,6 +269,26 @@ int init_micro_ros_transport(void)
     return 0;
 }
 
+int micro_ros_node_get_last_version(void)
+{
+    int64_t seq;
+    int ret = 0;
+
+    minipock_msgs__srv__TrigUpdate_Request__init(&req);
+    req.actual_version.major = 1;
+    req.actual_version.minor = 1;
+    req.actual_version.patch = 0;
+
+    k_sleep(K_SECONDS(2));
+
+    ret = rcl_send_request(&client, &req, &seq);
+    if (ret != RCL_RET_OK) {
+        LOG_ERR("Failed to send request");
+    }
+
+    return ret;
+}
+
 int init_micro_ros_node(void)
 {
     if (iniatialized) {
@@ -324,6 +332,15 @@ int init_micro_ros_node(void)
         return -1;
     }
 
+    if (rclc_client_init_default(&client_update,
+                &node,
+                ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_msgs, srv, GetChunk),
+                "/minipock_0/firmware_update/chunk")
+            != RCL_RET_OK) {
+        LOG_ERR("Failed to create client");
+        return;
+    }
+
     // Create executor
     executor = rclc_executor_get_zero_initialized_executor();
     if (rclc_executor_init(&executor, &support.context, 3, &allocator)) {
@@ -345,6 +362,12 @@ int init_micro_ros_node(void)
     if (rclc_executor_add_client(&executor, &client, &res, update_service_callback) != RCL_RET_OK) {
         LOG_ERR("Failed to add client to executor");
         return -1;
+    }
+
+    if (rclc_executor_add_client(&executor, &client_update, &res_chunk, update_chunk_received)
+            != RCL_RET_OK) {
+        LOG_ERR("Failed to add client to executor");
+        return;
     }
 
     // Synchronize time
@@ -384,17 +407,8 @@ void spin_micro_ros_node(void)
             case AGENT_AVAILABLE:
                 if (init_micro_ros_node() == 0) {
                     LOG_WRN("Micro-ROS node initialized");
-                    int64_t seq;
 
-                    minipock_msgs__srv__TrigUpdate_Request__init(&req);
-                    req.actual_version.major = 1;
-                    req.actual_version.minor = 1;
-                    req.actual_version.patch = 0;
-                    k_sleep(K_SECONDS(2));
-                    int ret = rcl_send_request(&client, &req, &seq);
-                    if (ret != RCL_RET_OK) {
-                        LOG_ERR("Failed to send request");
-                    }
+                    micro_ros_node_get_last_version();
 
                     state = AGENT_CONNECTED;
                 } else {
