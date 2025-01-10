@@ -1,18 +1,26 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
+#include "update.h"
+
 LOG_MODULE_REGISTER(update, LOG_LEVEL_DBG);
 
 static struct update_interface *update_interface;
 
 static struct update_params update_params;
 
-enum states { WAITING_UPDATE, UPDATE_AVAILABLE, UPDATE_IN_PROGRESS, UPDATE_COMPLETED } state;
+static enum states {
+    WAITING_UPDATE,
+    UPDATE_AVAILABLE,
+    UPDATE_IN_PROGRESS,
+    UPDATE_COMPLETED,
+} state;
 
 struct update_status {
     enum states current_state;
     int progress_percentage;
     int last_chunk_id;
+    bool in_progress;
 };
 
 static struct update_status update_status = {
