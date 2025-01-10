@@ -10,9 +10,11 @@
 #include <rmw_microros/rmw_microros.h>
 #include <sensor_msgs/msg/laser_scan.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/crc.h>
 
 #include <minipock_msgs/srv/get_chunk.h>
 #include <minipock_msgs/srv/trig_update.h>
+#include <type_utilities.h>
 
 #include "base_interface.h"
 #include "micro_ros_node.h"
@@ -44,6 +46,8 @@ static geometry_msgs__msg__Twist cmd_vel_twist_msg;
 static uint64_t ros_timestamp;
 
 bool iniatialized = true;
+
+static int chunk_id = 0;
 
 enum states { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED } state;
 
@@ -181,13 +185,43 @@ void update_chunk_received(const void *msgin)
     const minipock_msgs__srv__GetChunk_Response *in
             = (const minipock_msgs__srv__GetChunk_Response *)msgin;
 
-    LOG_DBG("Chunk received: %d", in->chunk_id);
+    LOG_DBG("Chunk received: %lld", in->chunk_id);
     LOG_DBG("Chunk Success: %d", in->success);
-    LOG_DBG("Chunk Checksum: %d", in->chunk_checksum);
+    LOG_DBG("Chunk Checksum: %lld", in->chunk_checksum);
 
     if (in->success == 0) {
-        // TODO decode chunk
-        LOG_DBG("Message received");
+        LOG_DBG("Message received %d, size: %d", chunk_id, in->chunk_byte.size);
+
+        uint8_t crc = 0;
+        crc = crc8_ccitt(crc, in->chunk_byte.data, in->chunk_byte.size);
+
+        LOG_DBG("CRC: %d", crc);
+        if (crc == in->chunk_checksum) {
+            LOG_DBG("Checksum OK");
+            chunk_id++;
+        } else {
+            LOG_ERR("Checksum failed");
+        }
+
+        minipock_msgs__srv__GetChunk_Request__init(&req_chunk);
+
+        req_chunk.version.major = 2;
+        req_chunk.version.minor = 1;
+        req_chunk.version.patch = 0;
+
+        req_chunk.chunk_id = chunk_id;
+        req_chunk.chunk_size = 1024;
+
+        int64_t seq;
+
+        int ret = rcl_send_request(&client_update, &req_chunk, &seq);
+
+        if (ret != RCL_RET_OK) {
+            LOG_ERR("Failed to send request %d", ret);
+            return;
+        }
+    } else if (in->success == 2) {
+        LOG_INF("Download Finished");
     }
 }
 
@@ -208,8 +242,8 @@ void update_service_callback(const void *msgin)
         req_chunk.version.minor = 1;
         req_chunk.version.patch = 0;
 
-        req_chunk.chunk_id = 0;
-        req_chunk.chunk_size = 256;
+        req_chunk.chunk_id = chunk_id;
+        req_chunk.chunk_size = 1024;
 
         int64_t seq;
 
@@ -363,6 +397,16 @@ int init_micro_ros_node(void)
         LOG_ERR("Failed to add client to executor");
         return -1;
     }
+
+    // Initialize chunk response
+    static micro_ros_utilities_memory_conf_t conf = { 0 };
+
+    conf.max_string_capacity = 50;
+    conf.max_ros2_type_sequence_capacity = 1024;
+    conf.max_basic_type_sequence_capacity = 1024;
+
+    bool success = micro_ros_utilities_create_message_memory(
+            ROSIDL_GET_MSG_TYPE_SUPPORT(minipock_msgs, srv, GetChunk_Response), &res_chunk, conf);
 
     if (rclc_executor_add_client(&executor, &client_update, &res_chunk, update_chunk_received)
             != RCL_RET_OK) {
