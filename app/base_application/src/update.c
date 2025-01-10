@@ -1,9 +1,16 @@
+#include <zephyr/drivers/flash.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/storage/flash_map.h>
 
 #include "update.h"
 
 LOG_MODULE_REGISTER(update, LOG_LEVEL_DBG);
+
+#define CHUNK_SIZE 1024
+
+#define PRIMARY_SLOT_PARTITION_ID FIXED_PARTITION_ID(slot0_partition)
+#define SECOND_SLOT_PARTITION_ID FIXED_PARTITION_ID(slot1_partition)
 
 static struct update_interface *update_interface;
 
@@ -60,13 +67,36 @@ void update_start(void)
 void update_write_chunk(const uint8_t id, const uint8_t *chunk, size_t size)
 {
     LOG_INF("Writing chunk %d", id);
-    // TODO: Store the chunk in flash memory
 
-    update_status.last_chunk_id = id;
-    update_status.progress_percentage = (id * size * 100) / update_params.size;
+    const struct flash_area *flash_area;
+    int rc = flash_area_open(SECOND_SLOT_PARTITION_ID, &flash_area);
+    if (rc) {
+        LOG_ERR("Cannot open flash area");
+        return;
+    }
 
-    int percentage = (id * size * 100) / update_params.size;
-    LOG_INF("Update progress: %d%%", percentage);
+    if (id == 0) {
+        rc = flash_area_erase(flash_area, 0, flash_area->fa_size);
+        if (rc) {
+            LOG_ERR("Cannot erase flash area");
+            flash_area_close(flash_area);
+            return;
+        }
+    }
+
+    size_t chunk_size = size;
+    if (size % 32) {
+        chunk_size = size + 32 - (size % 32);
+    }
+
+    rc = flash_area_write(flash_area, id * CHUNK_SIZE, chunk, chunk_size);
+    if (rc) {
+        LOG_ERR("Cannot write to flash area");
+        flash_area_close(flash_area);
+        return;
+    }
+
+    flash_area_close(flash_area);
 }
 
 void update_init(struct update_interface *trigger)

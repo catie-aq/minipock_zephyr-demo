@@ -9,6 +9,7 @@
 #include <rclc/rclc.h>
 #include <rmw_microros/rmw_microros.h>
 #include <sensor_msgs/msg/laser_scan.h>
+#include <zephyr/dfu/mcuboot.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/crc.h>
 
@@ -19,6 +20,7 @@
 #include "base_interface.h"
 #include "micro_ros_node.h"
 #include "scan.h"
+#include "update.h"
 
 LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_DBG);
 
@@ -198,6 +200,7 @@ void update_chunk_received(const void *msgin)
         LOG_DBG("CRC: %d", crc);
         if (crc == in->chunk_checksum) {
             LOG_DBG("Checksum OK");
+            update_write_chunk(chunk_id, in->chunk_byte.data, in->chunk_byte.size);
             chunk_id++;
         } else {
             LOG_ERR("Checksum failed");
@@ -222,6 +225,7 @@ void update_chunk_received(const void *msgin)
         }
     } else if (in->success == 2) {
         LOG_INF("Download Finished");
+        boot_request_upgrade((int)BOOT_UPGRADE_PERMANENT);
     }
 }
 
