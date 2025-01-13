@@ -25,6 +25,7 @@ manifest:
           - nanopb
           - mbedtls
           - hostap
+          - mcuboot
     - name: micro_ros_zephyr_module
       remote: catie-6tron
       revision: minipock-jazzy
