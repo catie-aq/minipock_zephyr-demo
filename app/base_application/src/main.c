@@ -7,6 +7,7 @@
 #include <zephyr/net/wifi_mgmt.h>
 
 #include "common.h"
+#include "flash_storage.h"
 #include "micro_ros_node.h"
 #include "update.h"
 
@@ -32,6 +33,9 @@ int main()
 {
     int ret;
     uint8_t major, minor, revision;
+    char ssid[32];
+    char password[32];
+    uint8_t channel;
 
     update_get_current_version(&major, &minor, &revision);
 
@@ -47,6 +51,25 @@ int main()
         return 0;
     }
 
+    // Init Flash Storage
+    ret = flash_storage_init();
+    if (ret < 0) {
+        printf("Flash storage init failed\n");
+        return 0;
+    }
+
+    // Read SSID and Password from Flash
+    flash_storage_read("ssid", ssid, sizeof(ssid));
+    flash_storage_read("password", password, sizeof(password));
+    flash_storage_read("channel", &channel, sizeof(channel));
+
+    if (strlen(ssid) == 0 || strlen(password) == 0) {
+        printf("SSID or Password not found in flash\n");
+        memcpy(ssid, CONFIG_MICROROS_WIFI_SSID, strlen(CONFIG_MICROROS_WIFI_SSID));
+        memcpy(password, CONFIG_MICROROS_WIFI_PASSWORD, strlen(CONFIG_MICROROS_WIFI_PASSWORD));
+        channel = 1;
+    }
+
     // ------ Wifi Configuration ------
     net_mgmt_init_event_callback(
             &wifi_shell_mgmt_cb, wifi_mgmt_event_handler, NET_EVENT_IPV4_ADDR_ADD);
@@ -58,7 +81,7 @@ int main()
     static struct wifi_connect_req_params wifi_args;
 
     wifi_args.security = WIFI_SECURITY_TYPE_PSK;
-    wifi_args.channel = 13;
+    wifi_args.channel = channel;
     wifi_args.psk = CONFIG_MICROROS_WIFI_PASSWORD;
     wifi_args.psk_length = strlen(wifi_args.psk);
     wifi_args.ssid = CONFIG_MICROROS_WIFI_SSID;

@@ -18,6 +18,7 @@
 #include <type_utilities.h>
 
 #include "base_interface.h"
+#include "flash_storage.h"
 #include "micro_ros_node.h"
 #include "scan.h"
 #include "update.h"
@@ -36,6 +37,8 @@ static rcl_node_t node;
 static rcl_init_options_t init_options;
 static rcl_client_t client;
 static rcl_client_t client_update;
+
+static char namespace[50];
 
 static struct base_interface_trigger base_callback;
 static struct scan_trigger scan_callback;
@@ -303,6 +306,7 @@ int init_micro_ros_transport(void)
 {
     static zephyr_transport_params_t agent_param
             = { { 0, 0, 0 }, CONFIG_MICROROS_AGENT_IP, CONFIG_MICROROS_AGENT_PORT };
+    flash_storage_read("agent_ip", agent_param.ip, sizeof(agent_param.ip));
 
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)&agent_param,
@@ -352,6 +356,12 @@ int init_micro_ros_node(void)
         if (rcl_init_options_set_domain_id(&init_options, CONFIG_ROS_ROS_DOMAIN_ID) != RCL_RET_OK) {
             LOG_ERR("Failed to set domain id");
         }
+
+        flash_storage_read("namespace", namespace, sizeof(namespace));
+
+        if (strlen(namespace) == 0) {
+            snprintf(namespace, sizeof(namespace), "minipock_%d", CONFIG_ROS_ROS_DOMAIN_ID);
+        }
     }
 
     if (rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator)
@@ -361,7 +371,7 @@ int init_micro_ros_node(void)
     }
 
     // Initialize node
-    if (rclc_node_init_default(&node, CONFIG_ROS_NAMESPACE, "", &support) != RCL_RET_OK) {
+    if (rclc_node_init_default(&node, namespace, "", &support) != RCL_RET_OK) {
         LOG_ERR("Failed to create node");
         return -1;
     }
@@ -372,19 +382,22 @@ int init_micro_ros_node(void)
     init_cmd_vel_subscriber(&node);
 
     // Create client
+    char service_name[75];
+    snprintf(service_name, sizeof(service_name), "/%s/firmware_update", namespace);
     if (rclc_client_init_default(&client,
                 &node,
                 ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_msgs, srv, TrigUpdate),
-                "/minipock_0/firmware_update")
+                service_name)
             != RCL_RET_OK) {
         LOG_ERR("Failed to create client");
         return -1;
     }
 
+    snprintf(service_name, sizeof(service_name), "/%s/firmware_update/chunk", namespace);
     if (rclc_client_init_default(&client_update,
                 &node,
                 ROSIDL_GET_SRV_TYPE_SUPPORT(minipock_msgs, srv, GetChunk),
-                "/minipock_0/firmware_update/chunk")
+                service_name)
             != RCL_RET_OK) {
         LOG_ERR("Failed to create client");
         return;
