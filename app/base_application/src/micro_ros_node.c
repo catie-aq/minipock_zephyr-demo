@@ -24,6 +24,8 @@
 
 LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_DBG);
 
+#define UPDATE_CHUNK_SIZE 1024
+
 static rclc_executor_t executor;
 static rcl_publisher_t odom_publisher;
 static rcl_publisher_t scan_publisher;
@@ -50,6 +52,7 @@ static uint64_t ros_timestamp;
 bool iniatialized = true;
 
 static int chunk_id = 0;
+static uint8_t version[3] = { 0, 0, 0 };
 
 enum states { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED } state;
 
@@ -208,12 +211,12 @@ void update_chunk_received(const void *msgin)
 
         minipock_msgs__srv__GetChunk_Request__init(&req_chunk);
 
-        req_chunk.version.major = 2;
-        req_chunk.version.minor = 1;
-        req_chunk.version.patch = 0;
+        req_chunk.version.major = version[0];
+        req_chunk.version.minor = version[1];
+        req_chunk.version.patch = version[2];
 
         req_chunk.chunk_id = chunk_id;
-        req_chunk.chunk_size = 1024;
+        req_chunk.chunk_size = UPDATE_CHUNK_SIZE;
 
         int64_t seq;
 
@@ -242,12 +245,16 @@ void update_service_callback(const void *msgin)
 
         minipock_msgs__srv__GetChunk_Request__init(&req_chunk);
 
-        req_chunk.version.major = 2;
-        req_chunk.version.minor = 1;
-        req_chunk.version.patch = 0;
+        req_chunk.version.major = in->new_version.major;
+        req_chunk.version.minor = in->new_version.minor;
+        req_chunk.version.patch = in->new_version.patch;
+
+        version[0] = in->new_version.major;
+        version[1] = in->new_version.minor;
+        version[2] = in->new_version.patch;
 
         req_chunk.chunk_id = chunk_id;
-        req_chunk.chunk_size = 1024;
+        req_chunk.chunk_size = UPDATE_CHUNK_SIZE;
 
         int64_t seq;
 
@@ -313,9 +320,13 @@ int micro_ros_node_get_last_version(void)
     int ret = 0;
 
     minipock_msgs__srv__TrigUpdate_Request__init(&req);
-    req.actual_version.major = 1;
-    req.actual_version.minor = 1;
-    req.actual_version.patch = 0;
+
+    struct mcuboot_img_header header;
+    boot_read_bank_header(PRIMARY_SLOT_PARTITION_ID, &header, sizeof(header));
+
+    req.actual_version.major = header.h.v1.sem_ver.major;
+    req.actual_version.minor = header.h.v1.sem_ver.minor;
+    req.actual_version.patch = header.h.v1.sem_ver.revision;
 
     k_sleep(K_SECONDS(2));
 
@@ -406,8 +417,8 @@ int init_micro_ros_node(void)
     static micro_ros_utilities_memory_conf_t conf = { 0 };
 
     conf.max_string_capacity = 50;
-    conf.max_ros2_type_sequence_capacity = 1024;
-    conf.max_basic_type_sequence_capacity = 1024;
+    conf.max_ros2_type_sequence_capacity = UPDATE_CHUNK_SIZE;
+    conf.max_basic_type_sequence_capacity = UPDATE_CHUNK_SIZE;
 
     bool success = micro_ros_utilities_create_message_memory(
             ROSIDL_GET_MSG_TYPE_SUPPORT(minipock_msgs, srv, GetChunk_Response), &res_chunk, conf);

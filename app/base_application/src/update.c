@@ -1,16 +1,10 @@
 #include <zephyr/drivers/flash.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/storage/flash_map.h>
 
 #include "update.h"
 
 LOG_MODULE_REGISTER(update, LOG_LEVEL_DBG);
-
-#define CHUNK_SIZE 1024
-
-#define PRIMARY_SLOT_PARTITION_ID FIXED_PARTITION_ID(slot0_partition)
-#define SECOND_SLOT_PARTITION_ID FIXED_PARTITION_ID(slot1_partition)
 
 static struct update_interface *update_interface;
 
@@ -89,7 +83,7 @@ void update_write_chunk(const uint8_t id, const uint8_t *chunk, size_t size)
         chunk_size = size + 32 - (size % 32);
     }
 
-    rc = flash_area_write(flash_area, id * CHUNK_SIZE, chunk, chunk_size);
+    rc = flash_area_write(flash_area, id * UPDATE_CHUNK_SIZE, chunk, chunk_size);
     if (rc) {
         LOG_ERR("Cannot write to flash area");
         flash_area_close(flash_area);
