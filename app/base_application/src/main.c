@@ -59,16 +59,9 @@ int main()
     }
 
     // Read SSID and Password from Flash
-    flash_storage_read("ssid", ssid, sizeof(ssid));
-    flash_storage_read("password", password, sizeof(password));
-    flash_storage_read("channel", &channel, sizeof(channel));
-
-    if (strlen(ssid) == 0 || strlen(password) == 0) {
-        printf("SSID or Password not found in flash\n");
-        memcpy(ssid, CONFIG_MICROROS_WIFI_SSID, strlen(CONFIG_MICROROS_WIFI_SSID));
-        memcpy(password, CONFIG_MICROROS_WIFI_PASSWORD, strlen(CONFIG_MICROROS_WIFI_PASSWORD));
-        channel = 1;
-    }
+    flash_storage_read(SSID, ssid, sizeof(ssid));
+    flash_storage_read(PASSWORD, password, sizeof(password));
+    flash_storage_read(CHANNEL, &channel, sizeof(channel));
 
     // ------ Wifi Configuration ------
     net_mgmt_init_event_callback(

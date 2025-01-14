@@ -78,8 +78,8 @@ void lidar_scan_callback(const float *range_to_send,
 {
     static sensor_msgs__msg__LaserScan scan;
 
-    char frame_id[50];
-    snprintf(frame_id, sizeof(frame_id), "%s/lds_01_link", CONFIG_ROS_NAMESPACE);
+    char frame_id[75];
+    snprintf(frame_id, sizeof(frame_id), "%s/lds_01_link", namespace);
     scan.header.frame_id.data = frame_id;
     scan.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
     scan.header.stamp.nanosec = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
@@ -130,8 +130,8 @@ void send_odometry_callback(float x, float y, float theta)
     // Convert to ROS message
     static geometry_msgs__msg__PoseStamped pose_stamped_msg;
 
-    char frame_id[50];
-    snprintf(frame_id, sizeof(frame_id), "%s/odom", CONFIG_ROS_NAMESPACE);
+    char frame_id[60];
+    snprintf(frame_id, sizeof(frame_id), "%s/odom", namespace);
     pose_stamped_msg.header.frame_id.data = frame_id;
 
     pose_stamped_msg.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
@@ -156,9 +156,9 @@ void send_odometry_callback(float x, float y, float theta)
 
 void init_odometry_publisher(rcl_node_t *node)
 {
-    char odom_topic_name[50];
+    char odom_topic_name[60];
 
-    snprintf(odom_topic_name, sizeof(odom_topic_name), "/%s/odom_raw", CONFIG_ROS_NAMESPACE);
+    snprintf(odom_topic_name, sizeof(odom_topic_name), "/%s/odom_raw", namespace);
     rclc_publisher_init_best_effort(&odom_publisher,
             node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseStamped),
@@ -167,8 +167,8 @@ void init_odometry_publisher(rcl_node_t *node)
 
 void init_scan_publisher(rcl_node_t *node)
 {
-    char scan_topic_name[50];
-    snprintf(scan_topic_name, sizeof(scan_topic_name), "/%s/scan_raw", CONFIG_ROS_NAMESPACE);
+    char scan_topic_name[60];
+    snprintf(scan_topic_name, sizeof(scan_topic_name), "/%s/scan_raw", namespace);
     static rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
 
     rclc_publisher_init(&scan_publisher,
@@ -180,8 +180,8 @@ void init_scan_publisher(rcl_node_t *node)
 
 void init_cmd_vel_subscriber(rcl_node_t *node)
 {
-    char cmd_vel_topic_name[50];
-    snprintf(cmd_vel_topic_name, sizeof(cmd_vel_topic_name), "/%s/cmd_vel", CONFIG_ROS_NAMESPACE);
+    char cmd_vel_topic_name[60];
+    snprintf(cmd_vel_topic_name, sizeof(cmd_vel_topic_name), "/%s/cmd_vel", namespace);
     rclc_subscription_init_best_effort(&cmd_vel_subscriber,
             node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
@@ -357,10 +357,11 @@ int init_micro_ros_node(void)
             LOG_ERR("Failed to set domain id");
         }
 
-        flash_storage_read("namespace", namespace, sizeof(namespace));
+        flash_storage_read(NAMESPACE, namespace, sizeof(namespace));
 
-        if (strlen(namespace) == 0) {
-            snprintf(namespace, sizeof(namespace), "minipock_%d", CONFIG_ROS_ROS_DOMAIN_ID);
+        if (strlen(namespace) == sizeof(namespace)) {
+            strcpy(namespace, CONFIG_ROS_NAMESPACE);
+            flash_storage_write(NAMESPACE, namespace, strlen(namespace));
         }
     }
 

@@ -5,63 +5,80 @@
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/flash.h>
-#include <zephyr/fs/nvs.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/storage/flash_map.h>
 
 LOG_MODULE_REGISTER(flash_storage, LOG_LEVEL_DBG);
 
-#define NVS_PARTITION storage_partition
-#define NVS_PARTITION_DEVICE FIXED_PARTITION_DEVICE(NVS_PARTITION)
-#define NVS_PARTITION_OFFSET FIXED_PARTITION_OFFSET(NVS_PARTITION)
+#define MAX_KEY_LEN 64
 
-static struct nvs_fs fs;
+#define FLASH_PARTITION storage_partition
+#define FLASH_PARTITION_DEVICE FIXED_PARTITION_DEVICE(FLASH_PARTITION)
+#define FLASH_PARTITION_OFFSET FIXED_PARTITION_OFFSET(FLASH_PARTITION)
+
+static const struct device *flash_dev;
+static uint32_t sector_size;
 
 int flash_storage_init(void)
 {
-    int rc;
     struct flash_pages_info info;
 
-    fs.flash_device = NVS_PARTITION_DEVICE;
-    if (!device_is_ready(fs.flash_device)) {
-        printk("Flash device %s is not ready\n", fs.flash_device->name);
-        return 0;
+    flash_dev = FLASH_PARTITION_DEVICE;
+    if (!device_is_ready(flash_dev)) {
+        printk("Flash device %s is not ready\n", flash_dev->name);
+        return -ENODEV;
     }
-    fs.offset = NVS_PARTITION_OFFSET;
-    rc = flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
+
+    int rc = flash_get_page_info_by_offs(flash_dev, FLASH_PARTITION_OFFSET, &info);
     if (rc) {
         printk("Unable to get page info\n");
-        return 0;
+        return rc;
     }
-    fs.sector_size = info.size;
-    fs.sector_count = 3U;
 
-    rc = nvs_mount(&fs);
-    if (rc) {
-        printk("Flash Init failed\n");
-        return 0;
-    }
+    sector_size = info.size;
 
     return 0;
 }
 
-int flash_storage_write(const char *key, const char *value)
+int flash_storage_write(int key, const void *data, size_t len)
 {
     int rc;
-    rc = nvs_write(&fs, (uint16_t)key, value, strlen(value) + 1);
-    if (rc < 0) {
-        LOG_ERR("Flash Write failed");
+
+    uint8_t buf[512];
+    rc = flash_read(flash_dev, FLASH_PARTITION_OFFSET, buf, sizeof(buf));
+    if (rc) {
+        printk("Flash Read failed %d", rc);
+        return rc;
+    }
+    memcpy(&buf[key * MAX_KEY_LEN], data, len);
+    buf[key * MAX_KEY_LEN + len] = '\0';
+
+    rc = flash_erase(flash_dev, FLASH_PARTITION_OFFSET, sector_size);
+    if (rc) {
+        printk("Flash Erase failed %d", rc);
+        return rc;
+    }
+
+    rc = flash_write(flash_dev, FLASH_PARTITION_OFFSET, buf, sizeof(buf));
+    if (rc) {
+        printk("Flash Write failed %d", rc);
         return rc;
     }
     return 0;
 }
 
-int flash_storage_read(const char *key, char *value, size_t max_len)
+int flash_storage_read(int key, void *data, size_t len)
 {
     int rc;
-    rc = nvs_read(&fs, (uint16_t)key, value, max_len);
-    if (rc < 0) {
+
+    if (len > MAX_KEY_LEN) {
+        LOG_ERR("Data length exceeds maximum key length");
+        return -EINVAL;
+    }
+
+    rc = flash_read(flash_dev, FLASH_PARTITION_OFFSET + key * MAX_KEY_LEN, data, len);
+    if (rc) {
         LOG_ERR("Flash Read failed");
         return rc;
     }
