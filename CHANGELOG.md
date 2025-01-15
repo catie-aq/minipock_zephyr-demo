@@ -1,5 +1,17 @@
 # Changelog
 
+## [v2.2.0]
+
+### Added
+
+- [Base Application](app/base_application): Add firmware update.
+- [Base Application](app/base_application): Add micro-ROS agent reconnection.
+- [Base Application](app/base_application): Add shell commands for updating and setting parameters.
+
+### Changed
+
+- [Base Application](app/base_application): Store settings in the flash memory (SSID, password, IP address, namespace).
+
 ## [v2.1.0]
 
 ### Added
@@ -35,3 +47,4 @@ _Initial release._
 [v1.0.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v1.0.0
 [v2.0.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v2.0.0
 [v2.1.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v2.1.0
+[v2.2.0]: https://github.com/catie-aq/minipock_zephyr-demo/releases/tag/v2.2.0
