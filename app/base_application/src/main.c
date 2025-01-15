@@ -8,6 +8,7 @@
 
 #include "common.h"
 #include "micro_ros_node.h"
+#include "update.h"
 
 // Wireless management
 static struct net_mgmt_event_callback wifi_shell_mgmt_cb;
@@ -30,6 +31,11 @@ static void wifi_mgmt_event_handler(
 int main()
 {
     int ret;
+    uint8_t major, minor, revision;
+
+    update_get_current_version(&major, &minor, &revision);
+
+    printk("MiniPock version: %d.%d.%d\n", major, minor, revision);
 
     // Init LED0
     if (!gpio_is_ready_dt(&led)) {

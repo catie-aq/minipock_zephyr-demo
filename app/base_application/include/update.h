@@ -18,4 +18,6 @@ struct update_params {
     size_t size;
 };
 
+void update_write_chunk(const uint8_t id, const uint8_t *chunk, size_t size);
+void update_get_current_version(uint8_t *major, uint8_t *minor, uint8_t *revision);
 #endif // UPDATE_H
