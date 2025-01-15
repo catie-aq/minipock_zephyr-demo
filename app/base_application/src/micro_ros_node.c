@@ -321,14 +321,14 @@ int micro_ros_node_get_last_version(void)
 
     minipock_msgs__srv__TrigUpdate_Request__init(&req);
 
-    struct mcuboot_img_header header;
-    boot_read_bank_header(PRIMARY_SLOT_PARTITION_ID, &header, sizeof(header));
+    uint8_t major, minor, revision;
+    update_get_current_version(&major, &minor, &revision);
 
-    req.actual_version.major = header.h.v1.sem_ver.major;
-    req.actual_version.minor = header.h.v1.sem_ver.minor;
-    req.actual_version.patch = header.h.v1.sem_ver.revision;
+    req.actual_version.major = major;
+    req.actual_version.minor = minor;
+    req.actual_version.patch = revision;
 
-    k_sleep(K_SECONDS(2));
+    k_sleep(K_SECONDS(1));
 
     ret = rcl_send_request(&client, &req, &seq);
     if (ret != RCL_RET_OK) {

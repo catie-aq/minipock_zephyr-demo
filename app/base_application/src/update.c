@@ -1,3 +1,4 @@
+#include <zephyr/dfu/mcuboot.h>
 #include <zephyr/drivers/flash.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -6,61 +7,9 @@
 
 LOG_MODULE_REGISTER(update, LOG_LEVEL_DBG);
 
-static struct update_interface *update_interface;
-
-static struct update_params update_params;
-
-static enum states {
-    WAITING_UPDATE,
-    UPDATE_AVAILABLE,
-    UPDATE_IN_PROGRESS,
-    UPDATE_COMPLETED,
-} state;
-
-struct update_status {
-    enum states current_state;
-    int progress_percentage;
-    int last_chunk_id;
-    bool in_progress;
-};
-
-static struct update_status update_status = {
-    .in_progress = false,
-    .progress_percentage = 0,
-    .last_chunk_id = -1,
-};
-
-void update_request_params(void)
-{
-    LOG_DBG("Requesting update params");
-    if (update_interface->request_update_params != NULL) {
-        update_interface->request_update_params();
-    }
-}
-
-void update_receive_params(const struct update_params *params)
-{
-    LOG_DBG("Received update params: %s, %d", params->version, params->size);
-    update_params = *params;
-
-    update_status.current_state = UPDATE_AVAILABLE;
-}
-
-void update_start(void)
-{
-    LOG_DBG("Starting update with version: %s, size: %d",
-            update_params.version,
-            update_params.size);
-    update_status.current_state = UPDATE_IN_PROGRESS;
-
-    if (update_interface->request_update != NULL) {
-        update_interface->request_update();
-    }
-}
-
 void update_write_chunk(const uint8_t id, const uint8_t *chunk, size_t size)
 {
-    LOG_INF("Writing chunk %d", id);
+    LOG_DBG("Writing chunk %d", id);
 
     const struct flash_area *flash_area;
     int rc = flash_area_open(SECOND_SLOT_PARTITION_ID, &flash_area);
@@ -93,8 +42,12 @@ void update_write_chunk(const uint8_t id, const uint8_t *chunk, size_t size)
     flash_area_close(flash_area);
 }
 
-void update_init(struct update_interface *trigger)
+void update_get_current_version(uint8_t *major, uint8_t *minor, uint8_t *revision)
 {
-    LOG_DBG("Initializing update");
-    update_interface = trigger;
+    struct mcuboot_img_header header;
+    boot_read_bank_header(PRIMARY_SLOT_PARTITION_ID, &header, sizeof(header));
+
+    *major = header.h.v1.sem_ver.major;
+    *minor = header.h.v1.sem_ver.minor;
+    *revision = header.h.v1.sem_ver.revision;
 }
