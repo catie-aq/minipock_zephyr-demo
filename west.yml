@@ -30,10 +30,6 @@ manifest:
       remote: catie-6tron
       revision: minipock-jazzy
       path: modules/micro_ros_zephyr_module
-    - name: zephyr_hls-lfcd2
-      remote: catie-6tron
-      revision: master
-      path: 6tron/hls-lfcd2
     - name: 6tron-manifest
       remote: catie-6tron
       repo-path: zephyr_6tron-manifest
@@ -43,14 +39,13 @@ manifest:
         name-allowlist:
           - 6tron_connector
           - zest_core_stm32h753zi
-          - zest_interface_ethernet
     - name: ldrobot-ld19
       remote: catie-6tron
       repo-path: zephyr_ldrobot-ld19
-      revision: main
+      revision: 6bcd36bedceb70652d99582da80f9fbe5684b849
       path: 6tron/ldrobot-ld19
     - name: zest_radio_wifi
       remote: catie-6tron
       repo-path: zephyr_zest-radio-wifi
-      revision: 6-make-change-to-be-compatible-with-zephyr-370
+      revision: 8b67f8dde96b8f6766b5699fb685f8f259266e5b
       path: 6tron/shields/zest_radio_wifi
