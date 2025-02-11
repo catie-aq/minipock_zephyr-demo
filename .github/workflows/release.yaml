@@ -11,7 +11,7 @@ jobs:
     uses: catie-aq/zephyr_workflows/.github/workflows/application.yml@main
     with:
       container: "zephyrprojectrtos/ci:v0.26.14"
-      application: app/lidar_example
+      application: app/base_application
       board: "zest_core_stm32h753zi"
       blobs: "hal_nordic"
       extra_cmd: "pip3 install catkin_pkg lark-parser empy colcon-common-extensions"
@@ -35,6 +35,6 @@ jobs:
       with:
         token: ${{ secrets.PAT }}
         draft: true
-        tag_name: ${{ github.ref }}
+        tag_name: ${{ github.ref_name }}
         generate_release_notes: true
         files: tmp/*.bin
