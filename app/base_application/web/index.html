@@ -21,12 +21,6 @@
                 <a href="#network" class="list-group-item list-group-item-action bg-dark text-white active">
                     <i class="bi bi-wifi me-2"></i>Network
                 </a>
-                <a href="#ros" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-robot me-2"></i>ROS Config
-                </a>
-                <a href="#update" class="list-group-item list-group-item-action bg-dark text-white">
-                    <i class="bi bi-cloud-upload me-2"></i>Update
-                </a>
                 <a href="#system" class="list-group-item list-group-item-action bg-dark text-white">
                     <i class="bi bi-power me-2"></i>System
                 </a>
@@ -71,15 +65,15 @@
                                         <span class="fs-5">Connection Status</span>
                                     </div>
                                     <div class="border-top pt-2">
-                                        <p class="mb-2">
+                                        <p class="mb-2 d-flex justify-content-between">
                                             <strong>Network:</strong>
                                             <span id="currentSsid" class="badge bg-secondary">Not Connected</span>
                                         </p>
-                                        <p class="mb-2"></p>
+                                        <p class="mb-2 d-flex justify-content-between">
                                             <strong>IP Address:</strong>
                                             <span id="currentIp" class="text-muted">---.---.---.---</span>
                                         </p>
-                                        <p class="mb-0">
+                                        <p class="mb-0 d-flex justify-content-between">
                                             <strong>DHCP:</strong>
                                             <span id="dhcpStatus" class="badge bg-success">Enabled</span>
                                         </p>
@@ -122,62 +116,158 @@
                             </div>
                         </div>
                     </div>
+                </section>
+
+                <!-- System Section -->
+                <section id="system" class="content-section">
+                    <h2>System configuration</h2>
+                    <div class="row">
+                        <!-- Left column: ROS Settings -->
+                        <div class="col-md-8">
+                            <div class="card mt-3 shadow">
+                                <div class="card-header">
+                                    <i class="bi bi-robot me-2"></i>ROS Settings
+                                </div>
+                                <div class="card-body">
+                                    <form>
+                                        <div class="mb-4">
+                                            <label for="namespace" class="form-label fw-bold">
+                                                <i class="bi bi-tag me-2"></i>Namespace
+                                            </label>
+                                            <input type="text" class="form-control form-control-lg" id="namespace"
+                                                placeholder="Enter namespace" />
+                                        </div>
+                                        <div class="mb-4">
+                                            <label for="domain" class="form-label fw-bold">
+                                                <i class="bi bi-hash me-2"></i>ROS Domain ID
+                                            </label>
+                                            <input type="number" class="form-control form-control-lg" id="domain"
+                                                placeholder="Enter ROS domain ID" min="0" max="232" />
+                                            <div class="form-text">Domain ID must be between 0 and 232</div>
+                                        </div>
+                                        <div class="mb-4">
+                                            <label for="agentIp" class="form-label fw-bold">
+                                                <i class="bi bi-hdd-network me-2"></i>Micro ROS Agent IP
+                                            </label>
+                                            <input type="text" class="form-control form-control-lg" id="agentIp"
+                                                placeholder="Enter agent IP" />
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                                            <i class="bi bi-save me-2"></i>Save ROS Settings
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right column: Status cards -->
+                        <div class="col-md-4 d-flex flex-column">
+                            <!-- Current ROS Status card -->
+                            <div class="card mt-3 shadow flex-grow-1">
+                                <div class="card-header">
+                                    <i class="bi bi-info-circle me-2"></i>ROS Information
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2 d-flex justify-content-between"><strong>Namespace:</strong>
+                                        <span id="currentNamespace" class="badge bg-secondary">Not Set</span>
+                                    </p>
+                                    <p class="mb-2 d-flex justify-content-between"><strong>Domain ID:</strong>
+                                        <span id="currentDomain" class="badge bg-secondary">0</span>
+                                    </p>
+                                    <p class="mb-0 d-flex justify-content-between"><strong>Agent Status:</strong>
+                                        <span id="agentStatus" class="badge bg-success">Connected</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- System Information card -->
+                            <div class="card mt-3 shadow flex-grow-1">
+                                <div class="card-header">
+                                    <i class="bi bi-info-circle me-2"></i>System Information
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-2 d-flex justify-content-between">
+                                        <strong>Firmware Version:</strong>
+                                        <span id="firmwareVersion">1.0.0</span>
+                                    </div>
+                                    <div class="mb-2 d-flex justify-content-between">
+                                        <strong>Uptime:</strong>
+                                        <span id="uptime">0d 0h 0m</span>
+                                    </div>
+                                    <div class="mb-2 d-flex justify-content-between align-items-center">
+                                        <strong>Battery Level:</strong>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-battery-charging me-2"></i>
+                                            <span id="batteryLevel" class="badge bg-success">14V</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card mt-3 shadow">
+                                <div class="card-header">
+                                    <i class="bi bi-cloud-arrow-up me-2"></i>System Update
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <p class="form-label">GitHub Update</p>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <button class="btn btn-info" id="checkUpdateButton">
+                                                    <i class="bi bi-search me-2"></i>Check for Updates
+                                                </button>
+                                            </div>
+                                            <div>
+                                                <div id="updateStatus">
+                                                    <span class="badge bg-secondary">No updates checked</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="updateFile" class="form-label">Manual Update</label>
+                                        <input type="file" class="form-control" id="updateFile" accept=".bin,.hex">
+                                        <button class="btn btn-primary mt-2" id="manualUpdateButton">
+                                            <i class="bi bi-upload me-2"></i>Upload and Install
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 d-flex flex-column">
+                            <div class="card mt-3 shadow flex-grow-1">
+                                <div class="card-header">
+                                    <i class="bi bi-power me-2"></i>System Control
+                                </div>
+                                <div class="card-body d-flex flex-column h-100">
+                                    <div class="row g-2 flex-grow-1">
+                                        <div class="col-6 d-flex">
+                                            <button class="btn btn-danger w-100" id="restartButton">
+                                                <i class="bi bi-power me-2"></i>Restart
+                                            </button>
+                                        </div>
+                                        <div class="col-6 d-flex">
+                                            <button class="btn btn-success w-100" id="estopButton">
+                                                <i class="bi bi-exclamation-octagon me-2"></i>
+                                                <span id="estopText">E-Stop</span>
+                                            </button>
+                                        </div>
+                                        <div class="col-6 d-flex">
+                                            <button class="btn btn-secondary w-100" id="resetParamsButton">
+                                                <i class="bi bi-arrow-counterclockwise me-2"></i>Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
-            </section>
-
-            <!-- ROS Config Section -->
-            <section id="ros" class="content-section">
-                <h2>ROS Configuration</h2>
-                <div class="card mt-3">
-                    <div class="card-body">
-                        <form>
-                            <div class="mb-3">
-                                <label for="namespace" class="form-label">Namespace</label>
-                                <input type="text" class="form-control" id="namespace" placeholder="Enter namespace" />
-                            </div>
-                            <div class="mb-3">
-                                <label for="agentIp" class="form-label">Micro ROS Agent IP</label>
-                                <input type="text" class="form-control" id="agentIp" placeholder="Enter agent IP" />
-                            </div>
-                            <button type="submit" class="btn btn-primary">
-                                Save ROS Settings
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Update Section -->
-            <section id="update" class="content-section">
-                <h2>System Update</h2>
-                <div class="card mt-3">
-                    <div class="card-body">
-                        <form>
-                            <div class="mb-3">
-                                <label for="updateFile" class="form-label">Upload Update File</label>
-                                <input type="file" class="form-control" id="updateFile" />
-                            </div>
-                            <button type="submit" class="btn btn-primary">
-                                Upload Update
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </section>
-
-            <!-- System Section -->
-            <section id="system" class="content-section">
-                <h2>System Control</h2>
-                <div class="card mt-3">
-                    <div class="card-body">
-                        <button class="btn btn-danger" id="restartButton">
-                            <i class="bi bi-power me-2"></i>Restart System
-                        </button>
-                    </div>
-                </div>
-            </section>
         </div>
-    </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
