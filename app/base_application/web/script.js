@@ -26,3 +26,14 @@ $(document).ready(function() {
         $('#restartModal').modal('hide');
     });
 });
+
+document.getElementById('dhcpEnabled').addEventListener('change', function() {
+    const staticIp = document.getElementById('staticIp');
+    const subnetMask = document.getElementById('subnetMask');
+    const gateway = document.getElementById('gateway');
+    const updateButton = document.getElementById('updateIpButton');
+    
+    staticIp.disabled = this.checked;
+    subnetMask.disabled = this.checked;
+    gateway.disabled = this.checked;
+});
