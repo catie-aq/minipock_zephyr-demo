@@ -50,3 +50,8 @@
         margin-left: -15rem;
     }
 }
+
+.form-switch .form-check-input:checked {
+    background-color: #198754; /* Vert Bootstrap */
+    border-color: #198754;
+}
