@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minipock Configuration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="d-flex" id="wrapper">
+        <!-- Sidebar -->
+        <div class="bg-dark text-white" id="sidebar-wrapper">
+            <div class="sidebar-heading p-3">
+                <i class="bi bi-gear-fill me-2"></i>Minipock
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="#network" class="list-group-item list-group-item-action bg-dark text-white active">
+                    <i class="bi bi-wifi me-2"></i>Network
+                </a>
+                <a href="#ros" class="list-group-item list-group-item-action bg-dark text-white">
+                    <i class="bi bi-robot me-2"></i>ROS Config
+                </a>
+                <a href="#update" class="list-group-item list-group-item-action bg-dark text-white">
+                    <i class="bi bi-cloud-upload me-2"></i>Update
+                </a>
+                <a href="#system" class="list-group-item list-group-item-action bg-dark text-white">
+                    <i class="bi bi-power me-2"></i>System
+                </a>
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div id="page-content-wrapper" class="flex-grow-1">
+            <div class="container-fluid p-4">
+                <!-- Network Section -->
+                <section id="network" class="content-section active">
+                    <h2>Network Configuration</h2>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <form>
+                                <div class="mb-3">
+                                    <label for="ssid" class="form-label">Wi-Fi SSID</label>
+                                    <input type="text" class="form-control" id="ssid" placeholder="Enter Wi-Fi SSID">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Wi-Fi Password</label>
+                                    <input type="password" class="form-control" id="password" placeholder="Enter Wi-Fi password">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Network Settings</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ROS Config Section -->
+                <section id="ros" class="content-section">
+                    <h2>ROS Configuration</h2>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <form>
+                                <div class="mb-3">
+                                    <label for="namespace" class="form-label">Namespace</label>
+                                    <input type="text" class="form-control" id="namespace" placeholder="Enter namespace">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="agentIp" class="form-label">Micro ROS Agent IP</label>
+                                    <input type="text" class="form-control" id="agentIp" placeholder="Enter agent IP">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save ROS Settings</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Update Section -->
+                <section id="update" class="content-section">
+                    <h2>System Update</h2>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <form>
+                                <div class="mb-3">
+                                    <label for="updateFile" class="form-label">Upload Update File</label>
+                                    <input type="file" class="form-control" id="updateFile">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Upload Update</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- System Section -->
+                <section id="system" class="content-section">
+                    <h2>System Control</h2>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <button class="btn btn-danger" id="restartButton">
+                                <i class="bi bi-power me-2"></i>Restart System
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+
+    <div class="modal fade" id="restartModal" tabindex="-1" aria-labelledby="restartModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="restartModalLabel">Confirm Restart</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to restart the system?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmRestartButton">
+                        <i class="bi bi-power me-2"></i>Confirm Restart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
