@@ -41,6 +41,9 @@ static rcl_client_t client_update;
 
 static char namespace[50];
 
+static struct base_interface_trigger test_callback; // test code
+static struct base_interface_trigger *base_interface_trigger;
+
 static struct base_interface_trigger base_callback;
 static struct scan_trigger scan_callback;
 
@@ -113,6 +116,19 @@ void lidar_scan_callback(const float *range_to_send,
     }
 }
 
+int init_sensor (struct base_interface_trigger *trigger)
+{
+    LOG_DBG("Initializing sensor");
+    base_interface_trigger = trigger;
+
+    return 0;
+}
+
+void send_sensor_callback(float x, float y, float theta)
+{
+    LOG_DBG("Sensor callback");
+}
+
 void send_odometry_callback(float x, float y, float theta)
 {
     // Convert x, y, theta to quaternion
@@ -151,6 +167,10 @@ void send_odometry_callback(float x, float y, float theta)
     if (state == AGENT_CONNECTED) {
         if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
             LOG_ERR("Failed to publish odometry message");
+        }
+        else
+        {
+            LOG_DBG("Odometry message published");
         }
     }
 }
@@ -362,7 +382,7 @@ int init_micro_ros_node(void)
 
         //flash_storage_read(NAMESPACE, namespace, sizeof(namespace));
         memset(namespace, 0, sizeof(namespace));
-        strcpy(namespace, "minipock_01");
+        strcpy(namespace, "minipock_0");
         printk("Namespace: %s\n", namespace);
 
         if (strlen(namespace) == sizeof(namespace)) {
@@ -468,6 +488,11 @@ int init_micro_ros_node(void)
         scan_callback.lidar_scan_callback = lidar_scan_callback;
 
         init_scan(&scan_callback);
+
+        // Initialize sensor
+        test_callback.odometry_callback = send_sensor_callback;
+
+        init_sensor(&test_callback);
     }
 
     iniatialized = false;
