@@ -29,7 +29,6 @@ void process_odometry_msg()
     static char data[odom_size];
 
     while (k_msgq_get(&uart_msgq, &data, K_FOREVER) == 0) {
-
         pb_istream_t stream = pb_istream_from_buffer(data, odom_size);
 
         odom msg = odom_init_zero;

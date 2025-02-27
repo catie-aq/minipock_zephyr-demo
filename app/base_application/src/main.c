@@ -111,5 +111,7 @@ int main()
     while (1) {
         gpio_pin_toggle_dt(&led);
         k_sleep(K_MSEC(1000));
+        send_odometry_callback(0, 0, 0);
+
     }
 }

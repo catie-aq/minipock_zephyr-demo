@@ -42,8 +42,6 @@ static rcl_client_t client_update;
 static char namespace[50];
 
 static struct base_interface_trigger test_callback; // test code
-static struct base_interface_trigger *base_interface_trigger;
-
 static struct base_interface_trigger base_callback;
 static struct scan_trigger scan_callback;
 
@@ -116,14 +114,7 @@ void lidar_scan_callback(const float *range_to_send,
     }
 }
 
-int init_sensor (struct base_interface_trigger *trigger)
-{
-    LOG_DBG("Initializing sensor");
-    base_interface_trigger = trigger;
-
-    return 0;
-}
-
+// Publish odometry message to ROS
 void send_sensor_callback(float x, float y, float theta)
 {
     LOG_DBG("Sensor callback");
