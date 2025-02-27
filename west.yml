@@ -49,3 +49,8 @@ manifest:
       repo-path: zephyr_zest-radio-wifi
       revision: 8b67f8dde96b8f6766b5699fb685f8f259266e5b
       path: 6tron/shields/zest_radio_wifi
+    - name : sparkfunc_paa5160e1
+      remote: catie-6tron
+      repo-path: zephyr_sparkfunc-paa5160e1
+      revision: main
+      path: 6tron/zephyr_sparkfun-paa5160e1
