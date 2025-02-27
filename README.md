@@ -3,6 +3,12 @@
 
 [![Build](https://github.com/catie-aq/minipock_zephyr-demo/actions/workflows/build.yaml/badge.svg)](https://github.com/catie-aq/minipock_zephyr-demo/actions/workflows/build.yaml)
 
+# WARNING
+
+**This branch is for development purposes only and may contain unstable code.**
+
+Please use the [main branch](https://github.com/catie-aq/minipock_zephyr-demo) for stable releases.
+
 # MiniPock Firmware
 
 This repository contains the firmware based on Zephyr OS for the MiniPock.
