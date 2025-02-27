@@ -22,6 +22,7 @@
 #include "micro_ros_node.h"
 #include "scan.h"
 #include "update.h"
+#include <autoconf.h>
 
 LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_DBG);
 
@@ -231,7 +232,7 @@ void update_chunk_received(const void *msgin)
         }
     } else if (in->success == 2) {
         LOG_INF("Download Finished");
-        boot_request_upgrade((int)BOOT_UPGRADE_PERMANENT);
+        //boot_request_upgrade((int)BOOT_UPGRADE_PERMANENT);
     }
 }
 
@@ -306,8 +307,10 @@ int init_micro_ros_transport(void)
 {
     static zephyr_transport_params_t agent_param
             = { { 0, 0, 0 }, CONFIG_MICROROS_AGENT_IP, CONFIG_MICROROS_AGENT_PORT };
-    flash_storage_read("agent_ip", agent_param.ip, sizeof(agent_param.ip));
-
+    //flash_storage_read("agent_ip", agent_param.ip, sizeof(agent_param.ip));
+    memset(agent_param.ip, 0, sizeof(agent_param.ip));
+    strcpy(agent_param.ip, "192.168.169.25");
+    printk("Agent IP: %s\n", agent_param.ip);
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)&agent_param,
             zephyr_transport_open,
@@ -357,14 +360,17 @@ int init_micro_ros_node(void)
             LOG_ERR("Failed to set domain id");
         }
 
-        flash_storage_read(NAMESPACE, namespace, sizeof(namespace));
+        //flash_storage_read(NAMESPACE, namespace, sizeof(namespace));
+        memset(namespace, 0, sizeof(namespace));
+        strcpy(namespace, "minipock_01");
+        printk("Namespace: %s\n", namespace);
 
         if (strlen(namespace) == sizeof(namespace)) {
             strcpy(namespace, CONFIG_ROS_NAMESPACE);
             flash_storage_write(NAMESPACE, namespace, strlen(namespace));
-        }
+        } 
     }
-
+    
     if (rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator)
             != RCL_RET_OK) {
         LOG_ERR("Failed to initialize support");
@@ -372,7 +378,12 @@ int init_micro_ros_node(void)
     }
 
     // Initialize node
-    if (rclc_node_init_default(&node, namespace, "", &support) != RCL_RET_OK) {
+    int ret;
+    //print namespace
+    printk("Namespace: %s\n", namespace);
+    ret = rclc_node_init_default(&node, namespace, "", &support);
+    if (ret != RCL_RET_OK) {
+        printk("Failed to create node, ret: %d\n", ret);
         LOG_ERR("Failed to create node");
         return -1;
     }

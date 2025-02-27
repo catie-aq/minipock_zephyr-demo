@@ -45,7 +45,7 @@ void update_write_chunk(const uint8_t id, const uint8_t *chunk, size_t size)
 void update_get_current_version(uint8_t *major, uint8_t *minor, uint8_t *revision)
 {
     struct mcuboot_img_header header;
-    boot_read_bank_header(PRIMARY_SLOT_PARTITION_ID, &header, sizeof(header));
+    //boot_read_bank_header(PRIMARY_SLOT_PARTITION_ID, &header, sizeof(header));
 
     *major = header.h.v1.sem_ver.major;
     *minor = header.h.v1.sem_ver.minor;
