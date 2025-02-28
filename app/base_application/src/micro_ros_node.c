@@ -43,7 +43,8 @@ static rcl_client_t client_update;
 static char namespace[50];
 
 static struct base_interface_trigger base_callback;
-static struct base_interface_trigger optic_sensor_callback; // Same struct as base_callback as they are both odometry
+static struct base_interface_trigger
+        optic_sensor_callback; // Same struct as base_callback as they are both odometry
 static struct scan_trigger scan_callback;
 
 minipock_msgs__srv__TrigUpdate_Request req;

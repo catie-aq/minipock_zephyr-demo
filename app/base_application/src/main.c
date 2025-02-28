@@ -1,4 +1,5 @@
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/net/net_context.h>
 #include <zephyr/net/net_core.h>
@@ -57,7 +58,7 @@ int main()
     // Init Flash Storage
     ret = flash_storage_init();
     if (ret < 0) {
-        printf("Flash storage init failed\n");
+        printk("Flash storage init failed\n");
         return 0;
     }
 
@@ -87,30 +88,31 @@ int main()
     struct net_if *iface = net_if_get_wifi_sta();
 
     if (!iface) {
-        printf("No default network interface\n");
+        printk("No default network interface\n");
     }
 
     ret = net_mgmt(
             NET_REQUEST_WIFI_CONNECT, iface, &wifi_args, sizeof(struct wifi_connect_req_params));
 
     if (ret < 0) {
-        printf("Connection request failed %d\n", ret);
+        printk("Connection request failed %d\n", ret);
     } else {
-        printf("Connection requested\n");
+        printk("Connection requested\n");
     }
 
     while (!connected) {
-        // printf("Waiting for connection\n");
         k_usleep(10000);
     }
-    printf("Connection OK\n");
+    printk("Connection OK\n");
 
     init_micro_ros_transport();
 
+    const struct device *sensor_dev;
+    sensor_dev = DEVICE_DT_GET(DT_NODELABEL(paa5160e1));
+
     while (1) {
+        sensor_sample_fetch(sensor_dev);
         gpio_pin_toggle_dt(&led);
-        k_sleep(K_MSEC(1000));
-        // send_odometry_callback(0, 0, 0);
-        send_optic_odometry_callback(0, 0, 0);
+        k_msleep(1000);
     }
 }
