@@ -41,8 +41,8 @@ static rcl_client_t client_update;
 
 static char namespace[50];
 
-static struct base_interface_trigger test_callback; // test code
 static struct base_interface_trigger base_callback;
+static struct base_interface_trigger optic_sensor_callback; // Same struct as base_callback as they are both odometry
 static struct scan_trigger scan_callback;
 
 minipock_msgs__srv__TrigUpdate_Request req;
@@ -115,7 +115,7 @@ void lidar_scan_callback(const float *range_to_send,
 }
 
 // Send odometry coming from sparkfun paa5160e1
-void send_sensor_odometry_callback(float x, float y, float theta)
+void send_optic_odometry_callback(float x, float y, float theta)
 {
     // Convert x, y, theta to quaternion
     float cy = cos((double)theta * 0.5);
@@ -134,7 +134,7 @@ void send_sensor_odometry_callback(float x, float y, float theta)
     static geometry_msgs__msg__PoseStamped pose_stamped_msg;
 
     char frame_id[60];
-    snprintf(frame_id, sizeof(frame_id), "%s/odom_sensor", namespace);
+    snprintf(frame_id, sizeof(frame_id), "%s/odom_optc", namespace);
     pose_stamped_msg.header.frame_id.data = frame_id;
 
     pose_stamped_msg.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
@@ -516,9 +516,9 @@ int init_micro_ros_node(void)
         init_scan(&scan_callback);
 
         // Initialize sensor
-        test_callback.odometry_callback = send_sensor_odometry_callback;
+        optic_sensor_callback.odometry_callback = send_optic_odometry_callback;
 
-        init_sensor(&test_callback);
+        init_optic_sensor(&optic_sensor_callback);
     }
 
     iniatialized = false;

@@ -111,6 +111,6 @@ int main()
         gpio_pin_toggle_dt(&led);
         k_sleep(K_MSEC(1000));
         // send_odometry_callback(0, 0, 0);
-        send_sensor_odometry_callback(0, 0, 0);
+        send_optic_odometry_callback(0, 0, 0);
     }
 }

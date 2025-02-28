@@ -40,7 +40,7 @@ void sensor_thread(void)
     }
 }
 
-int init_sensor(struct base_interface_trigger *trigger)
+int init_optic_sensor(struct base_interface_trigger *trigger)
 {
     LOG_DBG("Initializing sensor");
     sensor_interface_trigger = trigger;
