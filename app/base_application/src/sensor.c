@@ -6,6 +6,7 @@
 #include <rcl/rcl.h>
 
 #include "paa5160e1_global.h"
+#include "base_interface.h" // Include the header file that defines struct base_interface_trigger
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_DBG);
 
@@ -54,11 +55,16 @@ static void trigger_handler_sensor(const struct device *dev, struct sensor_trigg
 
 void sensor_thread(void)
 {
-    printk("Sensor thread started");
+    LOG_DBG("Sensor thread started");
 
-    while (1) {
-        printk("Sensor thread running\n");
-        k_sleep(K_MSEC(100000));
+    while (true)
+    {
+        struct optic_sensor_data optic_sensor_data;
+        k_msgq_get(&optic_sensor_msgq, &optic_sensor_data, K_FOREVER);
+
+        if (sensor_interface_trigger->odometry_callback != NULL) {
+            sensor_interface_trigger->odometry_callback((float)optic_sensor_data.x.val1, (float)optic_sensor_data.y.val1, (float)optic_sensor_data.h.val1);
+        }
     }
 }
 
