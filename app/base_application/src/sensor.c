@@ -1,6 +1,6 @@
+#include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/drivers/sensor.h>
 
 #include <rcl/error_handling.h>
 #include <rcl/rcl.h>
@@ -28,7 +28,6 @@ static void trigger_handler_sensor(const struct device *dev, struct sensor_trigg
     printk("Y: %d.%06d mm", value.val1, value.val2);
     sensor_channel_get(dev, PAA5160E1_SENSOR_CHAN_H, &value);
     printk("H: %d deg (x10^1) \n", value.val1);
-
 }
 
 void sensor_thread(void)
@@ -41,7 +40,7 @@ void sensor_thread(void)
     }
 }
 
-int init_sensor (struct base_interface_trigger *trigger)
+int init_sensor(struct base_interface_trigger *trigger)
 {
     LOG_DBG("Initializing sensor");
     sensor_interface_trigger = trigger;
@@ -67,7 +66,6 @@ int init_sensor (struct base_interface_trigger *trigger)
 
     return 0;
 }
-
 
 K_THREAD_DEFINE(sensor_thread_id, 1024, sensor_thread, NULL, NULL, NULL, 7, 0, 0);
 

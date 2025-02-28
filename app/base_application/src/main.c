@@ -27,8 +27,7 @@ static void wifi_mgmt_event_handler(
     if (NET_EVENT_IPV4_ADDR_ADD == mgmt_event) {
         printk("IPv4 address added\n");
         connected = 1;
-    }
-    else {
+    } else {
         printk("IPv4 address not added\n");
     }
 }
@@ -63,18 +62,18 @@ int main()
     }
 
     // Read SSID and Password from Flash
-    //flash_storage_read(SSID, ssid, sizeof(ssid));
-    //flash_storage_read(PASSWORD, password, sizeof(password));
-    //flash_storage_read(CHANNEL, &channel, sizeof(channel));
+    // flash_storage_read(SSID, ssid, sizeof(ssid));
+    // flash_storage_read(PASSWORD, password, sizeof(password));
+    // flash_storage_read(CHANNEL, &channel, sizeof(channel));
 
     // ------ Wifi Configuration ------
     net_mgmt_init_event_callback(
             &wifi_shell_mgmt_cb, wifi_mgmt_event_handler, NET_EVENT_IPV4_ADDR_ADD);
 
     net_mgmt_add_event_callback(&wifi_shell_mgmt_cb);
-    
+
     k_sleep(K_SECONDS(5));
-    
+
     static struct wifi_connect_req_params wifi_args;
 
     wifi_args.security = WIFI_SECURITY_TYPE_PSK;
@@ -105,13 +104,13 @@ int main()
         k_usleep(10000);
     }
     printf("Connection OK\n");
-    
+
     init_micro_ros_transport();
-    
+
     while (1) {
         gpio_pin_toggle_dt(&led);
         k_sleep(K_MSEC(1000));
-        //send_odometry_callback(0, 0, 0);
-
+        // send_odometry_callback(0, 0, 0);
+        send_sensor_odometry_callback(0, 0, 0);
     }
 }

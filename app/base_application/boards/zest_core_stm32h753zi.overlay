@@ -85,13 +85,10 @@
 
 &sixtron_i2c {
 	status = "okay";
-	
+
 	paa5160e1: paa5160e1@17 {
 		compatible = "sparkfun,paa5160e1";
 		reg = <0x17>;
 		status = "okay";
 	};
 };
-
-
-

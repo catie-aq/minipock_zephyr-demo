@@ -152,11 +152,9 @@ void send_sensor_odometry_callback(float x, float y, float theta)
 
     if (state == AGENT_CONNECTED) {
         if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
-            LOG_ERR("Failed to publish odometry message");
-        }
-        else
-        {
-            LOG_DBG("Sensor odometry message published");
+            LOG_ERR("Failed to publish sensor odometry message");
+        } else {
+            LOG_DBG("Odometry message published");
         }
     }
 }
@@ -199,10 +197,6 @@ void send_odometry_callback(float x, float y, float theta)
     if (state == AGENT_CONNECTED) {
         if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
             LOG_ERR("Failed to publish odometry message");
-        }
-        else
-        {
-            LOG_DBG("Odometry message published");
         }
     }
 }
@@ -284,7 +278,7 @@ void update_chunk_received(const void *msgin)
         }
     } else if (in->success == 2) {
         LOG_INF("Download Finished");
-        //boot_request_upgrade((int)BOOT_UPGRADE_PERMANENT);
+        // boot_request_upgrade((int)BOOT_UPGRADE_PERMANENT);
     }
 }
 
@@ -359,7 +353,7 @@ int init_micro_ros_transport(void)
 {
     static zephyr_transport_params_t agent_param
             = { { 0, 0, 0 }, CONFIG_MICROROS_AGENT_IP, CONFIG_MICROROS_AGENT_PORT };
-    //flash_storage_read("agent_ip", agent_param.ip, sizeof(agent_param.ip));
+    // flash_storage_read("agent_ip", agent_param.ip, sizeof(agent_param.ip));
     memset(agent_param.ip, 0, sizeof(agent_param.ip));
     strcpy(agent_param.ip, "192.168.169.25");
     printk("Agent IP: %s\n", agent_param.ip);
@@ -412,7 +406,7 @@ int init_micro_ros_node(void)
             LOG_ERR("Failed to set domain id");
         }
 
-        //flash_storage_read(NAMESPACE, namespace, sizeof(namespace));
+        // flash_storage_read(NAMESPACE, namespace, sizeof(namespace));
         memset(namespace, 0, sizeof(namespace));
         strcpy(namespace, "minipock_0");
         printk("Namespace: %s\n", namespace);
@@ -420,9 +414,9 @@ int init_micro_ros_node(void)
         if (strlen(namespace) == sizeof(namespace)) {
             strcpy(namespace, CONFIG_ROS_NAMESPACE);
             flash_storage_write(NAMESPACE, namespace, strlen(namespace));
-        } 
+        }
     }
-    
+
     if (rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator)
             != RCL_RET_OK) {
         LOG_ERR("Failed to initialize support");
@@ -431,7 +425,7 @@ int init_micro_ros_node(void)
 
     // Initialize node
     int ret;
-    //print namespace
+    // print namespace
     printk("Namespace: %s\n", namespace);
     ret = rclc_node_init_default(&node, namespace, "", &support);
     if (ret != RCL_RET_OK) {
