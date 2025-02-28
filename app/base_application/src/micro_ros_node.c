@@ -30,6 +30,7 @@ LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_DBG);
 
 static rclc_executor_t executor;
 static rcl_publisher_t odom_publisher;
+static rcl_publisher_t optic_odom_publisher;
 static rcl_publisher_t scan_publisher;
 static rcl_subscription_t cmd_vel_subscriber;
 static rcl_allocator_t allocator;
@@ -151,7 +152,7 @@ void send_optic_odometry_callback(float x, float y, float theta)
     pose_stamped_msg.pose.orientation.z = q3;
 
     if (state == AGENT_CONNECTED) {
-        if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
+        if (rcl_publish(&optic_odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
             LOG_ERR("Failed to publish sensor odometry message");
         } else {
             LOG_DBG("Odometry message published");
@@ -210,6 +211,17 @@ void init_odometry_publisher(rcl_node_t *node)
             node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseStamped),
             odom_topic_name);
+}
+
+void init_optic_odometry_publisher(rcl_node_t *node)
+{
+    char optic_odom_topic_name[65];
+
+    snprintf(optic_odom_topic_name, sizeof(optic_odom_topic_name), "/%s/odom_optc_raw", namespace);
+    rclc_publisher_init_best_effort(&optic_odom_publisher,
+            node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseStamped),
+            optic_odom_topic_name);
 }
 
 void init_scan_publisher(rcl_node_t *node)
@@ -436,6 +448,7 @@ int init_micro_ros_node(void)
 
     // Initialize publishers
     init_odometry_publisher(&node);
+    init_optic_odometry_publisher(&node);
     init_scan_publisher(&node);
     init_cmd_vel_subscriber(&node);
 

@@ -11,23 +11,45 @@ LOG_MODULE_REGISTER(sensor, LOG_LEVEL_DBG);
 
 static struct base_interface_trigger *sensor_interface_trigger;
 
+// // TODO: put in header file
+#define NB_MSG 10
+struct optic_sensor_data {
+    struct sensor_value x;
+    struct sensor_value y;
+    struct sensor_value h;
+};
+// //
+
+static struct optic_sensor_data optic_sensor_msg[NB_MSG];
+K_MSGQ_DEFINE(optic_sensor_msgq, sizeof(struct optic_sensor_data), 20, 4);
+
 static void trigger_handler_sensor(const struct device *dev, struct sensor_trigger *trigger)
 {
-    struct sensor_value value;
     int ret;
+    struct sensor_value value;
+    struct optic_sensor_data optic_sensor_data;
 
     ret = sensor_sample_fetch(dev);
     if (ret) {
-        printk("Failed to fetch sensor sample (%d)\n", ret);
+        LOG_ERR("Failed to fetch sensor sample (%d)\n", ret);
         return;
     }
-
+    
     sensor_channel_get(dev, PAA5160E1_SENSOR_CHAN_X, &value);
     printk("X: %d.%06d mm", value.val1, value.val2);
+    optic_sensor_data.x = value;
+
     sensor_channel_get(dev, PAA5160E1_SENSOR_CHAN_Y, &value);
     printk("Y: %d.%06d mm", value.val1, value.val2);
+    optic_sensor_data.y = value;
+
     sensor_channel_get(dev, PAA5160E1_SENSOR_CHAN_H, &value);
     printk("H: %d deg (x10^1) \n", value.val1);
+    optic_sensor_data.h = value;
+
+    while (k_msgq_put(&optic_sensor_msgq, &optic_sensor_data, K_NO_WAIT) != 0) {
+        k_msgq_purge(&optic_sensor_msgq);
+    }
 }
 
 void sensor_thread(void)
