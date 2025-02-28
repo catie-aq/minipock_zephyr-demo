@@ -114,10 +114,51 @@ void lidar_scan_callback(const float *range_to_send,
     }
 }
 
-// Publish odometry message to ROS
-void send_sensor_callback(float x, float y, float theta)
+// Send odometry coming from sparkfun paa5160e1
+void send_sensor_odometry_callback(float x, float y, float theta)
 {
-    LOG_DBG("Sensor callback");
+    // Convert x, y, theta to quaternion
+    float cy = cos((double)theta * 0.5);
+    float sy = sin((double)theta * 0.5);
+    float cp = cos(0.0 * 0.5);
+    float sp = sin(0.0 * 0.5);
+    float cr = cos(0.0 * 0.5);
+    float sr = sin(0.0 * 0.5);
+
+    float q0 = cy * cp * cr + sy * sp * sr;
+    float q1 = cy * cp * sr - sy * sp * cr;
+    float q2 = sy * cp * sr + cy * sp * cr;
+    float q3 = sy * cp * cr - cy * sp * sr;
+
+    // Convert to ROS message
+    static geometry_msgs__msg__PoseStamped pose_stamped_msg;
+
+    char frame_id[60];
+    snprintf(frame_id, sizeof(frame_id), "%s/odom_sensor", namespace);
+    pose_stamped_msg.header.frame_id.data = frame_id;
+
+    pose_stamped_msg.header.stamp.sec = (int32_t)((ros_timestamp + k_uptime_get()) / 1000);
+    pose_stamped_msg.header.stamp.nanosec
+            = (uint32_t)((ros_timestamp + k_uptime_get()) % 1000) * 1000000;
+
+    pose_stamped_msg.pose.position.x = (float)x;
+    pose_stamped_msg.pose.position.y = (float)y;
+    pose_stamped_msg.pose.position.z = 0;
+
+    pose_stamped_msg.pose.orientation.w = q0;
+    pose_stamped_msg.pose.orientation.x = q1;
+    pose_stamped_msg.pose.orientation.y = q2;
+    pose_stamped_msg.pose.orientation.z = q3;
+
+    if (state == AGENT_CONNECTED) {
+        if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
+            LOG_ERR("Failed to publish odometry message");
+        }
+        else
+        {
+            LOG_DBG("Sensor odometry message published");
+        }
+    }
 }
 
 void send_odometry_callback(float x, float y, float theta)
@@ -481,7 +522,7 @@ int init_micro_ros_node(void)
         init_scan(&scan_callback);
 
         // Initialize sensor
-        test_callback.odometry_callback = send_sensor_callback;
+        test_callback.odometry_callback = send_sensor_odometry_callback;
 
         init_sensor(&test_callback);
     }
