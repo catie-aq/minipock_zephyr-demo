@@ -37,8 +37,8 @@ int main()
 {
     int ret;
     uint8_t major, minor, revision;
-    char ssid[32] = "ShrekTelecomP";
-    char password[32] = "Shrekos36";
+    char ssid[32] = HOTSPOT_SSID;
+    char password[32] = HOTSPOT_PSK;
     uint8_t channel = 1;
 
     update_get_current_version(&major, &minor, &revision);
@@ -56,16 +56,18 @@ int main()
     }
 
     // Init Flash Storage
-    ret = flash_storage_init();
-    if (ret < 0) {
-        printk("Flash storage init failed\n");
-        return 0;
-    }
-
+    #ifndef SD_MODE
+        LOG_INF("Using SD Card for storage\n");
+        ret = flash_storage_init();
+        if (ret < 0) {
+            printk("Flash storage init failed\n");
+            return 0;
+        }
     // Read SSID and Password from Flash
-    // flash_storage_read(SSID, ssid, sizeof(ssid));
-    // flash_storage_read(PASSWORD, password, sizeof(password));
-    // flash_storage_read(CHANNEL, &channel, sizeof(channel));
+        flash_storage_read(SSID, ssid, sizeof(ssid));
+        flash_storage_read(PASSWORD, password, sizeof(password));
+        flash_storage_read(CHANNEL, &channel, sizeof(channel));
+    #endif
 
     // ------ Wifi Configuration ------
     net_mgmt_init_event_callback(
@@ -113,6 +115,6 @@ int main()
     while (1) {
         sensor_sample_fetch(sensor_dev);
         gpio_pin_toggle_dt(&led);
-        k_msleep(1000);
+        k_msleep(200);
     }
 }

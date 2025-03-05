@@ -22,7 +22,7 @@ static const struct device *const uart_dev = DEVICE_DT_GET(DT_ALIAS(rbdc_serial_
 static char rx_buf[odom_size];
 static int rx_buf_pos;
 
-K_MSGQ_DEFINE(uart_msgq, odom_size, 10, 4);
+K_MSGQ_DEFINE(uart_msgq, odom_size, 20, 4);
 
 void process_odometry_msg()
 {
@@ -34,6 +34,7 @@ void process_odometry_msg()
         odom msg = odom_init_zero;
 
         if (!pb_decode(&stream, odom_fields, &msg)) {
+            printk("Failed to decode message");
             continue;
         }
 
@@ -90,7 +91,7 @@ void send_command(float linear_x,
         buffer[0] = 0x00; // Add a dummy byte
         stream.bytes_written = 1;
     }
-
+    
     for (int i = 0; i < stream.bytes_written; i++) {
         uart_poll_out(uart_dev, buffer[i]);
     }

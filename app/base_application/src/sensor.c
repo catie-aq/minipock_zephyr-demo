@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(sensor, LOG_LEVEL_DBG);
 
 static struct base_interface_trigger *sensor_interface_trigger;
 
-#define NB_MSG 10
+#define NB_MSG 11
 
 struct optic_sensor_data {
     struct sensor_value x;
@@ -29,8 +29,6 @@ static void trigger_handler_sensor(const struct device *dev, struct sensor_trigg
     struct sensor_value value;
     struct optic_sensor_data optic_sensor_data;
 
-    LOG_INF("Getting sensor data");
-
     sensor_channel_get(dev, PAA5160E1_SENSOR_CHAN_X, &value);
     // printk("X: %d.%06d mm", value.val1, value.val2);
     optic_sensor_data.x = value;
@@ -40,10 +38,11 @@ static void trigger_handler_sensor(const struct device *dev, struct sensor_trigg
     optic_sensor_data.y = value;
 
     sensor_channel_get(dev, PAA5160E1_SENSOR_CHAN_H, &value);
-    // printk("H: %d deg (x10^1) \n", value.val1);
+    value.val1 = value.val1 / 10;
     optic_sensor_data.h = value;
 
-    while (k_msgq_put(&optic_sensor_msgq, &optic_sensor_data, K_NO_WAIT) != 0) {
+    while (k_msgq_put(&optic_sensor_msgq, &optic_sensor_data, K_NO_WAIT) != 0) 
+    {
         k_msgq_purge(&optic_sensor_msgq);
     }
 }
@@ -57,8 +56,8 @@ void optic_sensor_thread(void)
         k_msgq_get(&optic_sensor_msgq, &optic_sensor_data, K_FOREVER);
 
         if (sensor_interface_trigger->odometry_callback != NULL) {
-            sensor_interface_trigger->odometry_callback((float)optic_sensor_data.x.val1,
-                    (float)optic_sensor_data.y.val1,
+            sensor_interface_trigger->odometry_callback(((float)optic_sensor_data.x.val1)/1000.0,
+                    ((float)optic_sensor_data.y.val1)/1000.0,
                     (float)optic_sensor_data.h.val1);
         }
     }
@@ -90,8 +89,4 @@ int init_optic_sensor(struct base_interface_trigger *trigger)
     return 0;
 }
 
-K_THREAD_DEFINE(sensor_thread_id, 8162, optic_sensor_thread, NULL, NULL, NULL, 7, 0, 0);
-
-// 		sensor_sample_fetch(sensor);
-//	    struct sensor_value value;
-// 		sensor_channel_get(sensor, PAA5160E1_SENSOR_CHAN_X, &value);
+K_THREAD_DEFINE(sensor_thread_id, 2048, optic_sensor_thread, NULL, NULL, NULL, 7, 0, 0);
