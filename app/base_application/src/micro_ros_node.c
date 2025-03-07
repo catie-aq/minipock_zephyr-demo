@@ -210,9 +210,6 @@ void send_odometry_callback(float x, float y, float theta)
         if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
             LOG_ERR("Failed to publish odometry message");
         }
-        else {
-            LOG_DBG("Odometry message published %d %d %d", (int)x, (int)y, (int)theta);
-        }
     }
 }
 

@@ -38,7 +38,7 @@ static void trigger_handler_sensor(const struct device *dev, struct sensor_trigg
     optic_sensor_data.y = value;
 
     sensor_channel_get(dev, PAA5160E1_SENSOR_CHAN_H, &value);
-    value.val1 = value.val1 / 10;
+    printk("H: %d \n", value.val1);
     optic_sensor_data.h = value;
 
     while (k_msgq_put(&optic_sensor_msgq, &optic_sensor_data, K_NO_WAIT) != 0) 
@@ -58,7 +58,7 @@ void optic_sensor_thread(void)
         if (sensor_interface_trigger->odometry_callback != NULL) {
             sensor_interface_trigger->odometry_callback(((float)optic_sensor_data.x.val1)/1000.0,
                     ((float)optic_sensor_data.y.val1)/1000.0,
-                    (float)optic_sensor_data.h.val1);
+                    ((float)optic_sensor_data.h.val1 * 3.14159265359 / 1800.0 ));
         }
     }
 }
