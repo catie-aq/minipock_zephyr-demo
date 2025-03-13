@@ -23,6 +23,14 @@
 #include "scan.h"
 #include "update.h"
 
+#include "rclc_lifecycle/rclc_lifecycle.h"
+#include <lifecycle_msgs/msg/transition_description.h>
+#include <lifecycle_msgs/msg/transition_event.h>
+#include <lifecycle_msgs/srv/change_state.h>
+#include <lifecycle_msgs/srv/get_available_states.h>
+#include <lifecycle_msgs/srv/get_available_transitions.h>
+#include <lifecycle_msgs/srv/get_state.h>
+
 LOG_MODULE_REGISTER(micro_ros_node, LOG_LEVEL_DBG);
 
 #define UPDATE_CHUNK_SIZE 1024
@@ -37,6 +45,9 @@ static rcl_node_t node;
 static rcl_init_options_t init_options;
 static rcl_client_t client;
 static rcl_client_t client_update;
+
+rcl_lifecycle_state_machine_t state_machine;
+rclc_lifecycle_node_t lifecycle_node;
 
 static char namespace[50];
 
@@ -318,6 +329,30 @@ int init_micro_ros_transport(void)
     return 0;
 }
 
+rcl_ret_t my_on_configure()
+{
+    printk("  >>> lifecycle_node: on_configure() callback called.\n");
+    return RCL_RET_OK;
+}
+
+rcl_ret_t my_on_activate()
+{
+    printk("  >>> lifecycle_node: on_activate() callback called.\n");
+    return RCL_RET_OK;
+}
+
+rcl_ret_t my_on_deactivate()
+{
+    printk("  >>> lifecycle_node: on_deactivate() callback called.\n");
+    return RCL_RET_OK;
+}
+
+rcl_ret_t my_on_cleanup()
+{
+    printk("  >>> lifecycle_node: on_cleanup() callback called.\n");
+    return RCL_RET_OK;
+}
+
 int micro_ros_node_get_last_version(void)
 {
     int64_t seq;
@@ -377,6 +412,14 @@ int init_micro_ros_node(void)
         return -1;
     }
 
+    // Creating lifecycle mode
+    state_machine = rcl_lifecycle_get_zero_initialized_state_machine();
+    if (rclc_make_node_a_lifecycle_node(&lifecycle_node, &node, &state_machine, &allocator, true)
+            != RCL_RET_OK) {
+        LOG_ERR("Failed to create lifecycle node");
+        return -1;
+    }
+
     // Initialize publishers
     init_odometry_publisher(&node);
     init_scan_publisher(&node);
@@ -406,7 +449,7 @@ int init_micro_ros_node(void)
 
     // Create executor
     executor = rclc_executor_get_zero_initialized_executor();
-    if (rclc_executor_init(&executor, &support.context, 3, &allocator)) {
+    if (rclc_executor_init(&executor, &support.context, 6, &allocator)) {
         LOG_ERR("Failed to initialize executor");
         return -1;
     }
@@ -424,6 +467,41 @@ int init_micro_ros_node(void)
     // Add client to executor
     if (rclc_executor_add_client(&executor, &client, &res, update_service_callback) != RCL_RET_OK) {
         LOG_ERR("Failed to add client to executor");
+        return -1;
+    }
+
+    // Register lifecycle services
+    LOG_DBG("registering lifecycle services...");
+    rclc_lifecycle_service_context_t context;
+    context.lifecycle_node = &lifecycle_node;
+    if (rclc_lifecycle_init_get_state_server(&context, &executor)) {
+        LOG_ERR("Failed to register get state server");
+        return -1;
+    }
+
+    if (rclc_lifecycle_init_get_available_states_server(&context, &executor)) {
+        LOG_ERR("Failed to register get available states server");
+        return -1;
+    }
+
+    if (rclc_lifecycle_init_change_state_server(&context, &executor)) {
+        LOG_ERR("Failed to register change state server");
+        return -1;
+    }
+
+    // Register lifecycle service callbacks
+    LOG_DBG("registering callbacks...");
+    rclc_lifecycle_register_on_configure(&lifecycle_node, &my_on_configure);
+    rclc_lifecycle_register_on_activate(&lifecycle_node, &my_on_activate);
+    rclc_lifecycle_register_on_deactivate(&lifecycle_node, &my_on_deactivate);
+    rclc_lifecycle_register_on_cleanup(&lifecycle_node, &my_on_cleanup);
+
+    // switch lifecycle node to active state
+    LOG_DBG("switching lifecycle node to active state...");
+    if (rclc_lifecycle_change_state(
+                &lifecycle_node, lifecycle_msgs__msg__Transition__TRANSITION_CONFIGURE, true)
+            != RCL_RET_OK) {
+        LOG_ERR("Failed to change state");
         return -1;
     }
 
