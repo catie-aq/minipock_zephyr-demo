@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zephyr HTTP Server</title>
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <script src="main.js"></script>
+  </head>
+  <body class="bg-light">
+    <!-- Navigation -->
+    <nav
+      class="navbar navbar-expand-lg navbar-dark mb-4"
+      style="background-color: #45a285"
+    >
+      <div class="container">
+        <a class="navbar-brand" href="#">
+          <img
+            src="https://6tron.io/img/6tron_logo.png"
+            alt="6tron Logo"
+            height="30"
+            class="d-inline-block align-text-top me-2"
+          />
+          Zephyr HTTP Server
+        </a>
+      </div>
+    </nav>
+
+    <div class="container">
+      <div class="row g-4">
+        <!-- LED Control Card -->
+        <div class="col-md-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-header text-white">
+              <h5 class="mb-0">
+                <i class="fas fa-lightbulb me-2"></i>LED Control
+              </h5>
+            </div>
+            <div class="card-body">
+              <p class="card-text">
+                Toggle the LED on the board or print a message to the console.
+              </p>
+              <div
+                class="form-check form-switch d-flex align-items-center justify-content-center"
+              >
+                <input
+                  class="form-check-input me-3"
+                  type="checkbox"
+                  role="switch"
+                  id="led_switch"
+                  style="width: 60px; height: 30px"
+                />
+                <label class="form-check-label" for="led_switch">
+                  <span id="led_status" class="ms-2 text-muted">LED OFF</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Uptime Counter Card -->
+        <div class="col-md-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-header text-white">
+              <h5 class="mb-0">
+                <i class="fas fa-clock me-2"></i>Uptime Counter
+              </h5>
+            </div>
+            <div class="card-body">
+              <p class="card-text">Device uptime information:</p>
+              <h3 id="uptime" class="text-center text-muted"></h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- Network Statistics Card -->
+        <div class="col-12">
+          <div class="card shadow-sm">
+            <div class="card-header text-white">
+              <h5 class="mb-0">
+                <i class="fas fa-network-wired me-2"></i>Network Statistics
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <tbody>
+                    <tr>
+                      <td>
+                        <i class="fas fa-download me-2"></i>Total bytes received
+                      </td>
+                      <td id="bytes_recv" class="text-muted"></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="fas fa-upload me-2"></i>Total bytes sent
+                      </td>
+                      <td id="bytes_sent" class="text-muted"></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="fas fa-network-wired me-2"></i>IPv6 packets
+                        received
+                      </td>
+                      <td id="ipv6_pkt_recv" class="text-muted"></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="fas fa-network-wired me-2"></i>IPv6 packets
+                        sent
+                      </td>
+                      <td id="ipv6_pkt_sent" class="text-muted"></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="fas fa-network-wired me-2"></i>IPv4 packets
+                        received
+                      </td>
+                      <td id="ipv4_pkt_recv" class="text-muted"></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="fas fa-network-wired me-2"></i>IPv4 packets
+                        sent
+                      </td>
+                      <td id="ipv4_pkt_sent" class="text-muted"></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="fas fa-exchange-alt me-2"></i>TCP bytes
+                        received
+                      </td>
+                      <td id="tcp_bytes_recv" class="text-muted"></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <i class="fas fa-exchange-alt me-2"></i>TCP bytes sent
+                      </td>
+                      <td id="tcp_bytes_sent" class="text-muted"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RGB LEDs Control Card -->
+        <div class="col-12 mt-4">
+          <div class="card shadow-sm">
+            <div class="card-header text-white">
+              <h5 class="mb-0">
+                <i class="fas fa-lightbulb me-2"></i>Zest_Test_HMI RGB LEDs
+                Control
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="row g-4">
+                <!-- LED 1 -->
+                <div class="col-md-3">
+                  <div class="d-flex flex-column align-items-center">
+                    <label class="form-label mb-2">LED 1</label>
+                    <input
+                      type="color"
+                      class="form-control form-control-color"
+                      id="led1_color"
+                      value="#000000"
+                    />
+                    <div class="form-check form-switch mt-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="led1_switch"
+                        checked
+                      />
+                    </div>
+                  </div>
+                </div>
+                <!-- LED 2 -->
+                <div class="col-md-3">
+                  <div class="d-flex flex-column align-items-center">
+                    <label class="form-label mb-2">LED 2</label>
+                    <input
+                      type="color"
+                      class="form-control form-control-color"
+                      id="led2_color"
+                      value="#000000"
+                    />
+                    <div class="form-check form-switch mt-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="led2_switch"
+                        checked
+                      />
+                    </div>
+                  </div>
+                </div>
+                <!-- LED 3 -->
+                <div class="col-md-3">
+                  <div class="d-flex flex-column align-items-center">
+                    <label class="form-label mb-2">LED 3</label>
+                    <input
+                      type="color"
+                      class="form-control form-control-color"
+                      id="led3_color"
+                      value="#000000"
+                    />
+                    <div class="form-check form-switch mt-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="led3_switch"
+                        checked
+                      />
+                    </div>
+                  </div>
+                </div>
+                <!-- LED 4 -->
+                <div class="col-md-3">
+                  <div class="d-flex flex-column align-items-center">
+                    <label class="form-label mb-2">LED 4</label>
+                    <input
+                      type="color"
+                      class="form-control form-control-color"
+                      id="led4_color"
+                      value="#000000"
+                    />
+                    <div class="form-check form-switch mt-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="led4_switch"
+                        checked
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .card .card-header {
+        background-color: #45a285;
+      }
+
+      .form-check-input:checked {
+        background-color: #198754;
+        border-color: #198754;
+      }
+      .form-control-color {
+        width: 100px;
+        height: 50px;
+        padding: 0.375rem;
+      }
+      .form-control-color::-webkit-color-swatch {
+        border-radius: 0.25rem;
+        border: none;
+      }
+    </style>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document
+        .getElementById("led_switch")
+        .addEventListener("change", function () {
+          const status = document.getElementById("led_status");
+          if (this.checked) {
+            status.textContent = "LED ON";
+            status.classList.remove("text-muted");
+            status.classList.add("text-success");
+            postLed(0, true);
+          } else {
+            status.textContent = "LED OFF";
+            status.classList.remove("text-success");
+            status.classList.add("text-muted");
+            postLed(1, false);
+          }
+        });
+    </script>
+    <script>
+      function hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result
+          ? {
+              r: parseInt(result[1], 16),
+              g: parseInt(result[2], 16),
+              b: parseInt(result[3], 16),
+            }
+          : null;
+      }
+
+      function updateLedColor(ledNumber, color) {
+        const rgb = hexToRgb(color);
+        if (rgb) {
+          fetch("/led_rgb", {
+            method: "POST",
+            body: JSON.stringify({
+              led_num: ledNumber,
+              led_state: document.getElementById(`led${ledNumber + 1}_switch`)
+                .checked,
+              led_red: rgb.r,
+              led_green: rgb.g,
+              led_blue: rgb.b,
+            }),
+          });
+        }
+      }
+
+      // Add event listeners for color pickers
+      for (let i = 1; i <= 4; i++) {
+        const colorPicker = document.getElementById(`led${i}_color`);
+
+        // Real-time updates while dragging
+        colorPicker.addEventListener("input", (e) => {
+          updateLedColor(i - 1, e.target.value);
+        });
+
+        // Final color selection
+        colorPicker.addEventListener("change", (e) => {
+          updateLedColor(i - 1, e.target.value);
+        });
+
+        // Add event listener for LED switch
+        document
+          .getElementById(`led${i}_switch`)
+          .addEventListener("change", function () {
+            updateLedColor(i - 1, colorPicker.value);
+          });
+      }
+    </script>
+  </body>
+</html>
