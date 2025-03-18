@@ -23,6 +23,7 @@ jobs:
       blobs: "hal_nordic"
       extra_cmd: "pip3 install catkin_pkg lark-parser empy colcon-common-extensions"
       pem_key_path: app/base_application/key.pem
+      build_extra_args: "--sysbuild"
 
     secrets:
       personal_access_token: ${{ secrets.PAT }}
