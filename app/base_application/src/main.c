@@ -63,6 +63,14 @@ int main()
     flash_storage_read(PASSWORD, password, sizeof(password));
     flash_storage_read(CHANNEL, &channel, sizeof(channel));
 
+    if (strlen(ssid) == 0 || ssid[0] == 0xFF) {
+        strcpy(ssid, CONFIG_MICROROS_WIFI_SSID);
+    }
+
+    if (strlen(password) == 0 || password[0] == 0xFF) {
+        strcpy(password, CONFIG_MICROROS_WIFI_PASSWORD);
+    }
+
     // ------ Wifi Configuration ------
     net_mgmt_init_event_callback(
             &wifi_shell_mgmt_cb, wifi_mgmt_event_handler, NET_EVENT_IPV4_ADDR_ADD);
@@ -75,9 +83,9 @@ int main()
 
     wifi_args.security = WIFI_SECURITY_TYPE_PSK;
     wifi_args.channel = channel;
-    wifi_args.psk = CONFIG_MICROROS_WIFI_PASSWORD;
+    wifi_args.psk = password;
     wifi_args.psk_length = strlen(wifi_args.psk);
-    wifi_args.ssid = CONFIG_MICROROS_WIFI_SSID;
+    wifi_args.ssid = ssid;
     wifi_args.ssid_length = strlen(wifi_args.ssid);
     wifi_args.timeout = 0;
 
