@@ -49,8 +49,6 @@
 	};
 };
 
-
-
 &sixtron_connector_2_spi {
 	status = "okay";
 
@@ -83,6 +81,12 @@
 	};
 };
 
+/delete-node/ &boot_partition;
+/delete-node/ &storage_partition;
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &scratch_partition;
+
 &flash0 {
 	partitions {
 		compatible = "fixed-partitions";
@@ -97,7 +101,7 @@
 		};
 
 		/* application image slot: 896KB */
-		slot0_partition: partition@40000 {
+		slot0_partition: partition@20000 {
 			label = "image-0";
 			reg = <0x00020000 DT_SIZE_K(896)>;
 		};
@@ -109,9 +113,9 @@
 		};
 
 		/* storage: 128KB for settings */
-		storage_partition: partition@20000 {
+		storage_partition: partition@1e0000 {
 			label = "storage";
-			reg = <0x001E0000 DT_SIZE_K(128)>;
+			reg = <0x001e0000 DT_SIZE_K(128)>;
 		};
 	};
 };
