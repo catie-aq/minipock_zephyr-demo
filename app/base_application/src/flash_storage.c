@@ -48,7 +48,7 @@ int flash_storage_write(int key, const void *data, size_t len)
     uint8_t buf[512];
     rc = flash_read(flash_dev, FLASH_PARTITION_OFFSET, buf, sizeof(buf));
     if (rc) {
-        printk("Flash Read failed %d", rc);
+        printk("Flash Read failed %d, key: %d", rc, key);
         return rc;
     }
     memcpy(&buf[key * MAX_KEY_LEN], data, len);
@@ -79,7 +79,7 @@ int flash_storage_read(int key, void *data, size_t len)
 
     rc = flash_read(flash_dev, FLASH_PARTITION_OFFSET + key * MAX_KEY_LEN, data, len);
     if (rc) {
-        LOG_ERR("Flash Read failed");
+        LOG_ERR("Flash Read failed %d, key: %d", rc, key);
         return rc;
     }
     return 0;
