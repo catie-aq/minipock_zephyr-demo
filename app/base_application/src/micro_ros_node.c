@@ -306,7 +306,7 @@ int init_micro_ros_transport(void)
 {
     static zephyr_transport_params_t agent_param
             = { { 0, 0, 0 }, CONFIG_MICROROS_AGENT_IP, CONFIG_MICROROS_AGENT_PORT };
-    flash_storage_read("agent_ip", agent_param.ip, sizeof(agent_param.ip));
+    flash_storage_read(AGENT_IP, agent_param.ip, sizeof(agent_param.ip));
 
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)&agent_param,
@@ -359,7 +359,7 @@ int init_micro_ros_node(void)
 
         flash_storage_read(NAMESPACE, namespace, sizeof(namespace));
 
-        if (strlen(namespace) == sizeof(namespace)) {
+        if (strlen(namespace) == 0 || namespace[0] == 0xFF) {
             strcpy(namespace, CONFIG_ROS_NAMESPACE);
             flash_storage_write(NAMESPACE, namespace, strlen(namespace));
         }
