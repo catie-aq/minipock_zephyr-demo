@@ -3,349 +3,425 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zephyr HTTP Server</title>
-    <!-- Bootstrap CSS -->
+    <title>Minipock Configuration</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
-    <!-- Font Awesome -->
     <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
       rel="stylesheet"
     />
-    <script src="main.js"></script>
+    <link href="style.css" rel="stylesheet" />
   </head>
-  <body class="bg-light">
-    <!-- Navigation -->
-    <nav
-      class="navbar navbar-expand-lg navbar-dark mb-4"
-      style="background-color: #45a285"
-    >
-      <div class="container">
-        <a class="navbar-brand" href="#">
-          <img
-            src="https://6tron.io/img/6tron_logo.png"
-            alt="6tron Logo"
-            height="30"
-            class="d-inline-block align-text-top me-2"
-          />
-          Zephyr HTTP Server
-        </a>
+
+  <body>
+    <div class="d-flex" id="wrapper">
+      <!-- Sidebar -->
+      <div class="bg-dark text-white" id="sidebar-wrapper">
+        <div class="sidebar-heading p-3">
+          <i class="bi bi-gear-fill me-2"></i>Minipock
+        </div>
+        <div class="list-group list-group-flush">
+          <a
+            href="#network"
+            class="list-group-item list-group-item-action bg-dark text-white active"
+          >
+            <i class="bi bi-wifi me-2"></i>Network
+          </a>
+          <a
+            href="#system"
+            class="list-group-item list-group-item-action bg-dark text-white"
+          >
+            <i class="bi bi-power me-2"></i>System
+          </a>
+        </div>
       </div>
-    </nav>
 
-    <div class="container">
-      <div class="row g-4">
-        <!-- LED Control Card -->
-        <div class="col-md-6">
-          <div class="card shadow-sm h-100">
-            <div class="card-header text-white">
-              <h5 class="mb-0">
-                <i class="fas fa-lightbulb me-2"></i>LED Control
-              </h5>
-            </div>
-            <div class="card-body">
-              <p class="card-text">
-                Toggle the LED on the board or print a message to the console.
-              </p>
-              <div
-                class="form-check form-switch d-flex align-items-center justify-content-center"
-              >
-                <input
-                  class="form-check-input me-3"
-                  type="checkbox"
-                  role="switch"
-                  id="led_switch"
-                  style="width: 60px; height: 30px"
-                />
-                <label class="form-check-label" for="led_switch">
-                  <span id="led_status" class="ms-2 text-muted">LED OFF</span>
-                </label>
+      <!-- Page Content -->
+      <div id="page-content-wrapper" class="flex-grow-1">
+        <div class="container-fluid p-4">
+          <!-- Network Section -->
+          <section id="network" class="content-section active">
+            <h2>Network Configuration</h2>
+            <div class="row">
+              <div class="col-md-8">
+                <div class="card mt-3 shadow">
+                  <div class="card-body">
+                    <form>
+                      <div class="mb-3">
+                        <label for="ssid" class="form-label">Wi-Fi SSID</label>
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="ssid"
+                          placeholder="Enter Wi-Fi SSID"
+                        />
+                      </div>
+                      <div class="mb-3">
+                        <label for="password" class="form-label"
+                          >Wi-Fi Password</label
+                        >
+                        <input
+                          type="password"
+                          class="form-control"
+                          id="password"
+                          placeholder="Enter Wi-Fi password"
+                        />
+                      </div>
+                      <button type="submit" class="btn btn-primary">
+                        Save Network Settings
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Uptime Counter Card -->
-        <div class="col-md-6">
-          <div class="card shadow-sm h-100">
-            <div class="card-header text-white">
-              <h5 class="mb-0">
-                <i class="fas fa-clock me-2"></i>Uptime Counter
-              </h5>
-            </div>
-            <div class="card-body">
-              <p class="card-text">Device uptime information:</p>
-              <h3 id="uptime" class="text-center text-muted"></h3>
-            </div>
-          </div>
-        </div>
-
-        <!-- Network Statistics Card -->
-        <div class="col-12">
-          <div class="card shadow-sm">
-            <div class="card-header text-white">
-              <h5 class="mb-0">
-                <i class="fas fa-network-wired me-2"></i>Network Statistics
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table class="table table-hover">
-                  <tbody>
-                    <tr>
-                      <td>
-                        <i class="fas fa-download me-2"></i>Total bytes received
-                      </td>
-                      <td id="bytes_recv" class="text-muted"></td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="fas fa-upload me-2"></i>Total bytes sent
-                      </td>
-                      <td id="bytes_sent" class="text-muted"></td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="fas fa-network-wired me-2"></i>IPv6 packets
-                        received
-                      </td>
-                      <td id="ipv6_pkt_recv" class="text-muted"></td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="fas fa-network-wired me-2"></i>IPv6 packets
-                        sent
-                      </td>
-                      <td id="ipv6_pkt_sent" class="text-muted"></td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="fas fa-network-wired me-2"></i>IPv4 packets
-                        received
-                      </td>
-                      <td id="ipv4_pkt_recv" class="text-muted"></td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="fas fa-network-wired me-2"></i>IPv4 packets
-                        sent
-                      </td>
-                      <td id="ipv4_pkt_sent" class="text-muted"></td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="fas fa-exchange-alt me-2"></i>TCP bytes
-                        received
-                      </td>
-                      <td id="tcp_bytes_recv" class="text-muted"></td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <i class="fas fa-exchange-alt me-2"></i>TCP bytes sent
-                      </td>
-                      <td id="tcp_bytes_sent" class="text-muted"></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- RGB LEDs Control Card -->
-        <div class="col-12 mt-4">
-          <div class="card shadow-sm">
-            <div class="card-header text-white">
-              <h5 class="mb-0">
-                <i class="fas fa-lightbulb me-2"></i>Zest_Test_HMI RGB LEDs
-                Control
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="row g-4">
-                <!-- LED 1 -->
-                <div class="col-md-3">
-                  <div class="d-flex flex-column align-items-center">
-                    <label class="form-label mb-2">LED 1</label>
-                    <input
-                      type="color"
-                      class="form-control form-control-color"
-                      id="led1_color"
-                      value="#000000"
-                    />
-                    <div class="form-check form-switch mt-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        role="switch"
-                        id="led1_switch"
-                        checked
-                      />
+              <div class="col-md-4">
+                <div class="card mt-3 shadow">
+                  <div class="card-body">
+                    <h5 class="card-title">Current Network Status</h5>
+                    <div class="network-status"></div>
+                    <div class="d-flex align-items-center mb-2">
+                      <i class="bi bi-wifi me-2 fs-4"></i>
+                      <span class="fs-5">Connection Status</span>
                     </div>
-                  </div>
-                </div>
-                <!-- LED 2 -->
-                <div class="col-md-3">
-                  <div class="d-flex flex-column align-items-center">
-                    <label class="form-label mb-2">LED 2</label>
-                    <input
-                      type="color"
-                      class="form-control form-control-color"
-                      id="led2_color"
-                      value="#000000"
-                    />
-                    <div class="form-check form-switch mt-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        role="switch"
-                        id="led2_switch"
-                        checked
-                      />
-                    </div>
-                  </div>
-                </div>
-                <!-- LED 3 -->
-                <div class="col-md-3">
-                  <div class="d-flex flex-column align-items-center">
-                    <label class="form-label mb-2">LED 3</label>
-                    <input
-                      type="color"
-                      class="form-control form-control-color"
-                      id="led3_color"
-                      value="#000000"
-                    />
-                    <div class="form-check form-switch mt-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        role="switch"
-                        id="led3_switch"
-                        checked
-                      />
-                    </div>
-                  </div>
-                </div>
-                <!-- LED 4 -->
-                <div class="col-md-3">
-                  <div class="d-flex flex-column align-items-center">
-                    <label class="form-label mb-2">LED 4</label>
-                    <input
-                      type="color"
-                      class="form-control form-control-color"
-                      id="led4_color"
-                      value="#000000"
-                    />
-                    <div class="form-check form-switch mt-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        role="switch"
-                        id="led4_switch"
-                        checked
-                      />
+                    <div class="border-top pt-2">
+                      <p class="mb-2 d-flex justify-content-between">
+                        <strong>Network:</strong>
+                        <span id="currentSsid" class="badge bg-secondary"
+                          >Not Connected</span
+                        >
+                      </p>
+                      <p class="mb-2 d-flex justify-content-between">
+                        <strong>IP Address:</strong>
+                        <span id="currentIp" class="text-muted"
+                          >---.---.---.---</span
+                        >
+                      </p>
+                      <p class="mb-0 d-flex justify-content-between">
+                        <strong>DHCP:</strong>
+                        <span id="dhcpStatus" class="badge bg-success"
+                          >Enabled</span
+                        >
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+            <div class="row">
+              <div class="col-md-8">
+                <div class="card mt-3 shadow">
+                  <div class="card-body">
+                    <form id="ip-config-form">
+                      <div class="mb-3 form-check form-switch">
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          id="dhcpEnabled"
+                          checked
+                        />
+                        <label class="form-check-label" for="dhcpEnabled"
+                          >Enable DHCP</label
+                        >
+                      </div>
+                      <div id="static-ip-section">
+                        <div class="mb-3">
+                          <label for="staticIp" class="form-label"
+                            >Static IP Address</label
+                          >
+                          <input
+                            type="text"
+                            class="form-control"
+                            id="staticIp"
+                            placeholder="Enter static IP (e.g., 192.168.1.100)"
+                            disabled
+                          />
+                        </div>
+                        <div class="mb-3">
+                          <label for="subnetMask" class="form-label"
+                            >Subnet Mask</label
+                          >
+                          <input
+                            type="text"
+                            class="form-control"
+                            id="subnetMask"
+                            placeholder="Enter subnet mask (e.g., 255.255.255.0)"
+                            disabled
+                          />
+                        </div>
+                        <div class="mb-3">
+                          <label for="gateway" class="form-label"
+                            >Gateway</label
+                          >
+                          <input
+                            type="text"
+                            class="form-control"
+                            id="gateway"
+                            placeholder="Enter gateway (e.g., 192.168.1.1)"
+                            disabled
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          class="btn btn-primary"
+                          id="updateIpButton"
+                        >
+                          Update IP Settings
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- System Section -->
+          <section id="system" class="content-section">
+            <h2>System configuration</h2>
+            <div class="row">
+              <!-- Left column: ROS Settings -->
+              <div class="col-md-8">
+                <div class="card mt-3 shadow">
+                  <div class="card-header">
+                    <i class="bi bi-robot me-2"></i>ROS Settings
+                  </div>
+                  <div class="card-body">
+                    <form>
+                      <div class="mb-4">
+                        <label for="namespace" class="form-label fw-bold">
+                          <i class="bi bi-tag me-2"></i>Namespace
+                        </label>
+                        <input
+                          type="text"
+                          class="form-control form-control-lg"
+                          id="namespace"
+                          placeholder="Enter namespace"
+                        />
+                      </div>
+                      <div class="mb-4">
+                        <label for="domain" class="form-label fw-bold">
+                          <i class="bi bi-hash me-2"></i>ROS Domain ID
+                        </label>
+                        <input
+                          type="number"
+                          class="form-control form-control-lg"
+                          id="domain"
+                          placeholder="Enter ROS domain ID"
+                          min="0"
+                          max="232"
+                        />
+                        <div class="form-text">
+                          Domain ID must be between 0 and 232
+                        </div>
+                      </div>
+                      <div class="mb-4">
+                        <label for="agentIp" class="form-label fw-bold">
+                          <i class="bi bi-hdd-network me-2"></i>Micro ROS Agent
+                          IP
+                        </label>
+                        <input
+                          type="text"
+                          class="form-control form-control-lg"
+                          id="agentIp"
+                          placeholder="Enter agent IP"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        class="btn btn-primary btn-lg w-100"
+                      >
+                        <i class="bi bi-save me-2"></i>Save ROS Settings
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right column: Status cards -->
+              <div class="col-md-4 d-flex flex-column">
+                <!-- Current ROS Status card -->
+                <div class="card mt-3 shadow flex-grow-1">
+                  <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>ROS Information
+                  </div>
+                  <div class="card-body">
+                    <p class="mb-2 d-flex justify-content-between">
+                      <strong>Namespace:</strong>
+                      <span id="currentNamespace" class="badge bg-secondary"
+                        >Not Set</span
+                      >
+                    </p>
+                    <p class="mb-2 d-flex justify-content-between">
+                      <strong>Domain ID:</strong>
+                      <span id="currentDomain" class="badge bg-secondary"
+                        >0</span
+                      >
+                    </p>
+                    <p class="mb-0 d-flex justify-content-between">
+                      <strong>Agent Status:</strong>
+                      <span id="agentStatus" class="badge bg-success"
+                        >Connected</span
+                      >
+                    </p>
+                  </div>
+                </div>
+
+                <!-- System Information card -->
+                <div class="card mt-3 shadow flex-grow-1">
+                  <div class="card-header">
+                    <i class="bi bi-info-circle me-2"></i>System Information
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-2 d-flex justify-content-between">
+                      <strong>Firmware Version:</strong>
+                      <span id="firmwareVersion">1.0.0</span>
+                    </div>
+                    <div class="mb-2 d-flex justify-content-between">
+                      <strong>Uptime:</strong>
+                      <span id="uptime">0d 0h 0m</span>
+                    </div>
+                    <div
+                      class="mb-2 d-flex justify-content-between align-items-center"
+                    >
+                      <strong>Battery Level:</strong>
+                      <div class="d-flex align-items-center">
+                        <i class="bi bi-battery-charging me-2"></i>
+                        <span id="batteryLevel" class="badge bg-success"
+                          >14V</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-8">
+                <div class="card mt-3 shadow">
+                  <div class="card-header">
+                    <i class="bi bi-cloud-arrow-up me-2"></i>System Update
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <p class="form-label">GitHub Update</p>
+                      <div
+                        class="d-flex justify-content-between align-items-center mb-3"
+                      >
+                        <div>
+                          <button class="btn btn-info" id="checkUpdateButton">
+                            <i class="bi bi-search me-2"></i>Check for Updates
+                          </button>
+                        </div>
+                        <div>
+                          <div id="updateStatus">
+                            <span class="badge bg-secondary"
+                              >No updates checked</span
+                            >
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mb-3">
+                      <label for="updateFile" class="form-label"
+                        >Manual Update</label
+                      >
+                      <input
+                        type="file"
+                        class="form-control"
+                        id="updateFile"
+                        accept=".bin,.hex"
+                      />
+                      <button
+                        class="btn btn-primary mt-2"
+                        id="manualUpdateButton"
+                      >
+                        <i class="bi bi-upload me-2"></i>Upload and Install
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 d-flex flex-column">
+                <div class="card mt-3 shadow flex-grow-1">
+                  <div class="card-header">
+                    <i class="bi bi-power me-2"></i>System Control
+                  </div>
+                  <div class="card-body d-flex flex-column h-100">
+                    <div class="row g-2 flex-grow-1">
+                      <div class="col-6 d-flex">
+                        <button class="btn btn-danger w-100" id="restartButton">
+                          <i class="bi bi-power me-2"></i>Restart
+                        </button>
+                      </div>
+                      <div class="col-6 d-flex">
+                        <button class="btn btn-success w-100" id="estopButton">
+                          <i class="bi bi-exclamation-octagon me-2"></i>
+                          <span id="estopText">E-Stop</span>
+                        </button>
+                      </div>
+                      <div class="col-6 d-flex">
+                        <button
+                          class="btn btn-secondary w-100"
+                          id="resetParamsButton"
+                        >
+                          <i class="bi bi-arrow-counterclockwise me-2"></i>Reset
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
 
-    <style>
-      .card .card-header {
-        background-color: #45a285;
-      }
-
-      .form-check-input:checked {
-        background-color: #198754;
-        border-color: #198754;
-      }
-      .form-control-color {
-        width: 100px;
-        height: 50px;
-        padding: 0.375rem;
-      }
-      .form-control-color::-webkit-color-swatch {
-        border-radius: 0.25rem;
-        border: none;
-      }
-    </style>
-
-    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-      document
-        .getElementById("led_switch")
-        .addEventListener("change", function () {
-          const status = document.getElementById("led_status");
-          if (this.checked) {
-            status.textContent = "LED ON";
-            status.classList.remove("text-muted");
-            status.classList.add("text-success");
-            postLed(0, true);
-          } else {
-            status.textContent = "LED OFF";
-            status.classList.remove("text-success");
-            status.classList.add("text-muted");
-            postLed(1, false);
-          }
-        });
-    </script>
-    <script>
-      function hexToRgb(hex) {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result
-          ? {
-              r: parseInt(result[1], 16),
-              g: parseInt(result[2], 16),
-              b: parseInt(result[3], 16),
-            }
-          : null;
-      }
+    <script src="main.js"></script>
 
-      function updateLedColor(ledNumber, color) {
-        const rgb = hexToRgb(color);
-        if (rgb) {
-          fetch("/led_rgb", {
-            method: "POST",
-            body: JSON.stringify({
-              led_num: ledNumber,
-              led_state: document.getElementById(`led${ledNumber + 1}_switch`)
-                .checked,
-              led_red: rgb.r,
-              led_green: rgb.g,
-              led_blue: rgb.b,
-            }),
-          });
-        }
-      }
-
-      // Add event listeners for color pickers
-      for (let i = 1; i <= 4; i++) {
-        const colorPicker = document.getElementById(`led${i}_color`);
-
-        // Real-time updates while dragging
-        colorPicker.addEventListener("input", (e) => {
-          updateLedColor(i - 1, e.target.value);
-        });
-
-        // Final color selection
-        colorPicker.addEventListener("change", (e) => {
-          updateLedColor(i - 1, e.target.value);
-        });
-
-        // Add event listener for LED switch
-        document
-          .getElementById(`led${i}_switch`)
-          .addEventListener("change", function () {
-            updateLedColor(i - 1, colorPicker.value);
-          });
-      }
-    </script>
+    <div
+      class="modal fade"
+      id="restartModal"
+      tabindex="-1"
+      aria-labelledby="restartModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="restartModalLabel">Confirm Restart</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            Are you sure you want to restart the system?
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              id="confirmRestartButton"
+            >
+              <i class="bi bi-power me-2"></i>Confirm Restart
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
