@@ -88,3 +88,41 @@ document.getElementById("estopButton").addEventListener("click", function () {
     button.style.animation = "pulse 2s infinite";
   }
 });
+
+async function fetchUptime() {
+  try {
+    const response = await fetch("/uptime");
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    const uptime = document.getElementById("uptime");
+    uptime.innerHTML = json + " ms";
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+
+async function fetchVersion() {
+  try {
+    const response = await fetch("/version");
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    const version = document.getElementById("firmwareVersion");
+    version.innerHTML = json.version;
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+
+window.addEventListener("DOMContentLoaded", (ev) => {
+  /* Fetch the uptime once per second */
+  setInterval(fetchUptime, 2000);
+
+  /* Fetch the version once */
+  fetchVersion();
+});
