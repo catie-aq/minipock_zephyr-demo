@@ -6,7 +6,6 @@
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/wifi_mgmt.h>
 
-#include "common.h"
 #include "flash_storage.h"
 #include "micro_ros_node.h"
 #include "update.h"
@@ -111,6 +110,8 @@ int main()
     printf("Connection OK\n");
 
     init_micro_ros_transport();
+
+    http_server_start();
 
     while (1) {
         gpio_pin_toggle_dt(&led);
