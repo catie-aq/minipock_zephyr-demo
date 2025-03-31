@@ -17,6 +17,8 @@
 #include <zephyr/net/socket.h>
 #include <zephyr/sys/util_macro.h>
 
+#include "update.h"
+
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(web_interface, LOG_LEVEL_DBG);
 
@@ -68,6 +70,7 @@ static struct http_resource_detail_static style_css_gz_resource_detail = {
 };
 
 static uint8_t uptime_buf[sizeof(STRINGIFY(INT64_MAX))];
+static uint8_t version_buf[sizeof("255.255.255")];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -75,22 +78,90 @@ static int uptime_handler(struct http_client_ctx *client,
         size_t len,
         void *user_data)
 {
-    int ret;
-
+    static bool response_sent;
     LOG_DBG("Uptime handler status %d", status);
 
-    /* A payload is not expected with the GET request. Ignore any data and wait until
-     * final callback before sending response
-     */
-    if (status == HTTP_SERVER_DATA_FINAL) {
-        ret = snprintf(uptime_buf, sizeof(uptime_buf), "%" PRId64, k_uptime_get());
-        if (ret < 0) {
-            LOG_ERR("Failed to snprintf uptime, err %d", ret);
-            return ret;
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            /* A payload is not expected with the GET request. Ignore any data and wait until
+             * final callback before sending response
+             */
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                /* Response already sent, return 0 to indicate to server that the callback
+                 * does not need to be called again.
+                 */
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+            return snprintf(buffer, sizeof(uptime_buf), "%" PRId64, k_uptime_get());
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
         }
     }
+}
 
-    return ret;
+static int version_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    static bool response_sent;
+    LOG_DBG("Version handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            /* A payload is not expected with the GET request. Ignore any data and wait until
+             * final callback before sending response
+             */
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                /* Response already sent, return 0 to indicate to server that the callback
+                 * does not need to be called again.
+                 */
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+
+            uint8_t major, minor, revision;
+
+            update_get_current_version(&major, &minor, &revision);
+
+            return snprintf(buffer,
+                    sizeof(uptime_buf),
+                    "{\"version\":\"%d.%d.%d\"}",
+                    major,
+                    minor,
+                    revision);
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
 }
 
 static struct http_resource_detail_dynamic uptime_resource_detail = {
@@ -101,6 +172,17 @@ static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.cb = uptime_handler,
     .data_buffer = uptime_buf,
     .data_buffer_len = sizeof(uptime_buf),
+	.user_data = NULL,
+};
+
+static struct http_resource_detail_dynamic version_resource_detail = {
+	.common = {
+			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
+			.bitmask_of_supported_http_methods = BIT(HTTP_GET),
+		},
+	.cb = version_handler,
+    .data_buffer = version_buf,
+    .data_buffer_len = sizeof(version_buf),
 	.user_data = NULL,
 };
 
@@ -117,3 +199,5 @@ HTTP_RESOURCE_DEFINE(
         style_css_gz_resource, web_interface_service, "/style.css", &style_css_gz_resource_detail);
 
 HTTP_RESOURCE_DEFINE(uptime_resource, web_interface_service, "/uptime", &uptime_resource_detail);
+
+HTTP_RESOURCE_DEFINE(version_resource, web_interface_service, "/version", &version_resource_detail);
