@@ -1,3 +1,5 @@
+#include <arpa/inet.h>
+#include <zephyr/net/net_ip.h>
 #include <zephyr/shell/shell.h>
 
 #include "flash_storage.h"
@@ -83,11 +85,37 @@ static int cmd_set_namespace(const struct shell *shell, size_t argc, char **argv
     return ret;
 }
 
+static int cmd_set_agent_ip_address(const struct shell *shell, size_t argc, char **argv)
+{
+    int ret = -1;
+
+    if (argc > 2) {
+        shell_print(shell, "Usage: %s [ip_address]", argv[0]);
+        return ret;
+    } else if (argc == 1) {
+        char ip_address[16];
+        ret = flash_storage_read(AGENT_IP, ip_address, sizeof(ip_address));
+        shell_print(shell, "IP Address: %s", ip_address);
+        return 0;
+    } else {
+        struct in_addr addr;
+        if (inet_pton(AF_INET, argv[1], &addr) != 1) {
+            shell_error(shell, "Invalid IP address format");
+            return -1;
+        }
+        ret = flash_storage_write(AGENT_IP, argv[1], strlen(argv[1]));
+        shell_print(shell, "Set IP address: %s", argv[1]);
+    }
+
+    return ret;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(settings,
         SHELL_CMD(ssid, NULL, "Set SSID", cmd_set_wifi_ssid),
         SHELL_CMD(password, NULL, "Set password", cmd_set_wifi_password),
         SHELL_CMD(channel, NULL, "Set channel", cmd_set_wifi_channel),
         SHELL_CMD(namespace, NULL, "Set namespace", cmd_set_namespace),
+        SHELL_CMD(agent_ip, NULL, "Set Agent IP address", cmd_set_agent_ip_address),
         SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(settings, &settings, "Settings commands", NULL);

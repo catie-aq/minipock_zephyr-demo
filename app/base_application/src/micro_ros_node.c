@@ -304,7 +304,14 @@ int init_micro_ros_transport(void)
 {
     static zephyr_transport_params_t agent_param
             = { { 0, 0, 0 }, CONFIG_MICROROS_AGENT_IP, CONFIG_MICROROS_AGENT_PORT };
-    flash_storage_read(AGENT_IP, agent_param.ip, sizeof(agent_param.ip));
+
+    char ip_address[16];
+
+    flash_storage_read(AGENT_IP, ip_address, sizeof(ip_address));
+
+    if (strlen(ip_address) != 0 && ip_address[0] != 0xFF) {
+        memcpy(agent_param.ip, ip_address, strlen(ip_address));
+    }
 
     rmw_uros_set_custom_transport(MICRO_ROS_FRAMING_REQUIRED,
             (void *)&agent_param,
