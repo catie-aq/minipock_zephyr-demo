@@ -54,7 +54,6 @@ static uint64_t ros_timestamp;
 
 bool iniatialized = true;
 
-static int chunk_id = 0;
 static uint8_t version[3] = { 0, 0, 0 };
 
 enum states { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED } state;
@@ -198,7 +197,7 @@ void update_chunk_received(const void *msgin)
     LOG_DBG("Chunk Checksum: %lld", in->chunk_checksum);
 
     if (in->success == 0) {
-        LOG_DBG("Message received %d, size: %d", chunk_id, in->chunk_byte.size);
+        LOG_DBG("Message received %lld, size: %d", in->chunk_id, in->chunk_byte.size);
 
         uint8_t crc = 0;
         crc = crc8_ccitt(crc, in->chunk_byte.data, in->chunk_byte.size);
@@ -206,8 +205,7 @@ void update_chunk_received(const void *msgin)
         LOG_DBG("CRC: %d", crc);
         if (crc == in->chunk_checksum) {
             LOG_DBG("Checksum OK");
-            update_write_chunk(chunk_id, in->chunk_byte.data, in->chunk_byte.size);
-            chunk_id++;
+            update_write_chunk(in->chunk_id, in->chunk_byte.data, in->chunk_byte.size);
         } else {
             LOG_ERR("Checksum failed");
         }
@@ -218,7 +216,7 @@ void update_chunk_received(const void *msgin)
         req_chunk.version.minor = version[1];
         req_chunk.version.patch = version[2];
 
-        req_chunk.chunk_id = chunk_id;
+        req_chunk.chunk_id = in->chunk_id + 1;
         req_chunk.chunk_size = UPDATE_CHUNK_SIZE;
 
         int64_t seq;
@@ -256,7 +254,7 @@ void update_service_callback(const void *msgin)
         version[1] = in->new_version.minor;
         version[2] = in->new_version.patch;
 
-        req_chunk.chunk_id = chunk_id;
+        req_chunk.chunk_id = 0;
         req_chunk.chunk_size = UPDATE_CHUNK_SIZE;
 
         int64_t seq;

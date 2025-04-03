@@ -7,7 +7,7 @@
 
 LOG_MODULE_REGISTER(update, LOG_LEVEL_DBG);
 
-void update_write_chunk(const uint8_t id, const uint8_t *chunk, size_t size)
+void update_write_chunk(const uint16_t id, const uint8_t *chunk, size_t size)
 {
     LOG_DBG("Writing chunk %d", id);
 
