@@ -16,6 +16,7 @@
 #include <zephyr/net/net_core.h>
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/socket.h>
+#include <zephyr/sys/reboot.h>
 #include <zephyr/sys/util_macro.h>
 
 #include "flash_storage.h"
@@ -545,6 +546,46 @@ static int estop_handler(struct http_client_ctx *client,
     }
 }
 
+static int restart_system_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    static bool response_sent;
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+
+            LOG_INF("System restart initiated");
+            sys_reboot(SYS_REBOOT_COLD);
+
+            return snprintf(buffer,
+                    sizeof(micro_ros_status_buf),
+                    "{\"status\":\"success\", \"message\":\"System restart initiated\"}");
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
 static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -655,6 +696,17 @@ static struct http_resource_detail_dynamic factory_reset_resource_detail = {
     .user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic restart_system_resource_detail = {
+    .common = {
+        .type = HTTP_RESOURCE_TYPE_DYNAMIC,
+        .bitmask_of_supported_http_methods = BIT(HTTP_POST),
+    },
+    .cb = restart_system_handler,
+    .data_buffer = factory_reset_buf,
+    .data_buffer_len = sizeof(factory_reset_buf),
+    .user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -698,3 +750,8 @@ HTTP_RESOURCE_DEFINE(factory_reset_resource,
         web_interface_service,
         "/factory_reset",
         &factory_reset_resource_detail);
+
+HTTP_RESOURCE_DEFINE(restart_system_resource,
+        web_interface_service,
+        "/restart_system",
+        &restart_system_resource_detail);

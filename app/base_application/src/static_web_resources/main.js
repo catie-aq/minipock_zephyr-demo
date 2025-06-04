@@ -20,9 +20,26 @@ $(document).ready(function () {
   });
 
   // Handle confirm restart
-  $("#confirmRestartButton").click(function () {
-    // Add actual restart logic here
+  $("#confirmRestartButton").click(async function () {
     console.log("System restart confirmed");
+
+    try {
+      const response = await fetch("/restart_system", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) {
+        throw new Error(`Response status: ${response.status}`);
+      }
+      const result = await response.json();
+      console.log("System restart response:", result);
+    } catch (error) {
+      console.error("Failed to restart system:", error.message);
+    }
+
     $("#restartModal").modal("hide");
   });
 });
