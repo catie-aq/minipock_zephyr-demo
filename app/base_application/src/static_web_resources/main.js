@@ -355,6 +355,22 @@ async function fetchMicroRosStatus() {
   }
 }
 
+async function fetchAgentIp() {
+  try {
+    const response = await fetch("/agent_ip");
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    console.log(json);
+    const agentIpElement = document.getElementById("currentAgentIp");
+    agentIpElement.innerHTML = json.agent_ip;
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", async (ev) => {
   /* Fetch the version once */
   await fetchVersion();
@@ -366,6 +382,8 @@ window.addEventListener("DOMContentLoaded", async (ev) => {
   await fetchNamespace();
   /* Fetch the current domain ID once */
   await fetchDomainId();
+  /* Fetch the Agent IP once */
+  await fetchAgentIp();
 
   /* Fetch the micro-ROS status every 5 seconds */
   setInterval(fetchMicroRosStatus, 5000);
