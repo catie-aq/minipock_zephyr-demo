@@ -27,6 +27,37 @@ $(document).ready(function () {
   });
 });
 
+$(document).ready(function () {
+  // Show confirmation modal on reset button click
+  $("#resetParamsButton").click(function () {
+    $("#resetParamsModal").modal("show");
+  });
+
+  // Handle confirm reset
+  $("#confirmResetParamsButton").click(async function () {
+    console.log("System parameters reset confirmed");
+
+    try {
+      const response = await fetch("/factory_reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) {
+        throw new Error(`Response status: ${response.status}`);
+      }
+      const result = await response.json();
+      console.log("Parameters reset:", result);
+    } catch (error) {
+      console.error("Failed to reset parameters:", error.message);
+    }
+
+    $("#resetParamsModal").modal("hide");
+  });
+});
+
 document.getElementById("dhcpEnabled").addEventListener("change", function () {
   const staticIp = document.getElementById("staticIp");
   const subnetMask = document.getElementById("subnetMask");
