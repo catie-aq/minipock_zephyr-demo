@@ -139,6 +139,47 @@ async function fetchSSID() {
     console.error(error.message);
   }
 }
+
+document
+  .getElementById("saveNetworkSettingsButton")
+  .addEventListener("click", async function (e) {
+    e.preventDefault();
+
+    const ssidInput = document.getElementById("ssid").value;
+    const passwordInput = document.getElementById("password").value;
+
+    console.log("Saving network settings:", {
+      ssid: ssidInput,
+      password: passwordInput,
+    });
+
+    try {
+      const response = await fetch("/update_network", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ssid: ssidInput,
+          password: passwordInput,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Response status: ${response.status}`);
+      }
+
+      const resultText = await response.text();
+      if (resultText.trim() === "") {
+        throw new Error("Empty response from server");
+      }
+
+      const result = JSON.parse(resultText);
+      console.log("Network settings updated:", result);
+    } catch (error) {
+      console.error("Failed to update network settings:", error.message);
+    }
+  });
 window.addEventListener("DOMContentLoaded", async (ev) => {
   /* Fetch the uptime every 10 seconds */
   setInterval(fetchUptime, 10000);
