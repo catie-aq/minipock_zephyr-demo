@@ -73,6 +73,7 @@ static struct http_resource_detail_static style_css_gz_resource_detail = {
 static uint8_t uptime_buf[sizeof(STRINGIFY(INT64_MAX))];
 static uint8_t version_buf[sizeof("255.255.255")];
 static uint8_t ssid_buf[100];
+static uint8_t update_network_buf[256];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -205,6 +206,70 @@ static int ssid_handler(struct http_client_ctx *client,
     }
 }
 
+static int update_network_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    printk("Update Network handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (len > 0) {
+                LOG_DBG("Received data: %.*s", len, buffer);
+
+                // char encoded[] = "{\"ssid\":\"sd\",\"password\":\"sd\"";
+
+                struct wifi_settings_struct {
+                    char *ssid;
+                    char *password;
+                };
+
+                struct wifi_settings_struct wifi_settings = { 0 };
+
+                // Parse JSON data and update network settings
+                struct json_obj_descr descr[] = {
+                    JSON_OBJ_DESCR_PRIM(struct wifi_settings_struct, ssid, JSON_TOK_STRING),
+                    JSON_OBJ_DESCR_PRIM(struct wifi_settings_struct, password, JSON_TOK_STRING),
+                };
+                int ret = json_obj_parse(buffer, len, descr, ARRAY_SIZE(descr), &wifi_settings);
+                if (ret < 0) {
+                    LOG_ERR("Failed to parse JSON data: %d", ret);
+                    return snprintf(
+                            buffer, len, "{\"status\":\"error\", \"message\":\"Invalid JSON\"}");
+                }
+
+                // Save SSID and Password to flash storage
+                if (flash_storage_write(SSID, wifi_settings.ssid, strlen(wifi_settings.ssid)) < 0) {
+                    LOG_ERR("Failed to save SSID to flash storage");
+                    return snprintf(buffer,
+                            len,
+                            "{\"status\":\"error\", \"message\":\"Failed to save SSID\"}");
+                }
+                if (flash_storage_write(
+                            PASSWORD, wifi_settings.password, strlen(wifi_settings.password))
+                        < 0) {
+                    LOG_ERR("Failed to save Password to flash storage");
+                    return snprintf(buffer,
+                            len,
+                            "{\"status\":\"error\", \"message\":\"Failed to save Password\"}");
+                }
+            }
+
+            return snprintf(buffer, len, "{\"status\":\"success\"}");
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
 static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -238,6 +303,17 @@ static struct http_resource_detail_dynamic ssid_resource_detail = {
 	.user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic update_network_resource_detail = {
+	.common = {
+			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
+			.bitmask_of_supported_http_methods = BIT(HTTP_POST),
+		},
+	.cb = update_network_handler,
+    .data_buffer = update_network_buf,
+    .data_buffer_len = sizeof(update_network_buf),
+	.user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -255,3 +331,8 @@ HTTP_RESOURCE_DEFINE(uptime_resource, web_interface_service, "/uptime", &uptime_
 HTTP_RESOURCE_DEFINE(version_resource, web_interface_service, "/version", &version_resource_detail);
 
 HTTP_RESOURCE_DEFINE(ssid_resource, web_interface_service, "/ssid", &ssid_resource_detail);
+
+HTTP_RESOURCE_DEFINE(update_network_resource,
+        web_interface_service,
+        "/update_network",
+        &update_network_resource_detail);
