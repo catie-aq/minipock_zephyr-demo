@@ -291,17 +291,6 @@
                       <strong>Uptime:</strong>
                       <span id="uptime">0d 0h 0m</span>
                     </div>
-                    <div
-                      class="mb-2 d-flex justify-content-between align-items-center"
-                    >
-                      <strong>Battery Level:</strong>
-                      <div class="d-flex align-items-center">
-                        <i class="bi bi-battery-charging me-2"></i>
-                        <span id="batteryLevel" class="badge bg-success"
-                          >14V</span
-                        >
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -319,7 +308,11 @@
                         class="d-flex justify-content-between align-items-center mb-3"
                       >
                         <div>
-                          <button class="btn btn-info" id="checkUpdateButton">
+                          <button
+                            class="btn btn-info"
+                            id="checkUpdateButton"
+                            disabled
+                          >
                             <i class="bi bi-search me-2"></i>Check for Updates
                           </button>
                         </div>
@@ -341,10 +334,12 @@
                         class="form-control"
                         id="updateFile"
                         accept=".bin,.hex"
+                        disabled
                       />
                       <button
                         class="btn btn-primary mt-2"
                         id="manualUpdateButton"
+                        disabled
                       >
                         <i class="bi bi-upload me-2"></i>Upload and Install
                       </button>
