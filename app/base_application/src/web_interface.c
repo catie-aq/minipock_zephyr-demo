@@ -17,6 +17,7 @@
 #include <zephyr/net/socket.h>
 #include <zephyr/sys/util_macro.h>
 
+#include "flash_storage.h"
 #include "update.h"
 
 #include <zephyr/logging/log.h>
@@ -71,6 +72,7 @@ static struct http_resource_detail_static style_css_gz_resource_detail = {
 
 static uint8_t uptime_buf[sizeof(STRINGIFY(INT64_MAX))];
 static uint8_t version_buf[sizeof("255.255.255")];
+static uint8_t ssid_buf[100];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -164,6 +166,45 @@ static int version_handler(struct http_client_ctx *client,
     }
 }
 
+static int ssid_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    static bool response_sent;
+    LOG_DBG("SSID handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+
+            char ssid[32];
+            flash_storage_read(SSID, ssid, sizeof(ssid));
+
+            return snprintf(buffer, sizeof(ssid_buf), "{\"ssid\":\"%s\"}", ssid);
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
 static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -186,6 +227,17 @@ static struct http_resource_detail_dynamic version_resource_detail = {
 	.user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic ssid_resource_detail = {
+	.common = {
+			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
+			.bitmask_of_supported_http_methods = BIT(HTTP_GET),
+		},
+	.cb = ssid_handler,
+    .data_buffer = ssid_buf,
+    .data_buffer_len = sizeof(ssid_buf),
+	.user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -201,3 +253,5 @@ HTTP_RESOURCE_DEFINE(
 HTTP_RESOURCE_DEFINE(uptime_resource, web_interface_service, "/uptime", &uptime_resource_detail);
 
 HTTP_RESOURCE_DEFINE(version_resource, web_interface_service, "/version", &version_resource_detail);
+
+HTTP_RESOURCE_DEFINE(ssid_resource, web_interface_service, "/ssid", &ssid_resource_detail);

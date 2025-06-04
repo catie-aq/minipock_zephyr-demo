@@ -125,10 +125,26 @@ async function fetchVersion() {
   }
 }
 
-window.addEventListener("DOMContentLoaded", (ev) => {
-  /* Fetch the uptime once per second */
-  setInterval(fetchUptime, 2000);
+async function fetchSSID() {
+  try {
+    const response = await fetch("/ssid");
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    const ssidElement = document.getElementById("currentSsid"); // Correct element ID
+    ssidElement.innerHTML = json.ssid;
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+window.addEventListener("DOMContentLoaded", async (ev) => {
+  /* Fetch the uptime every 10 seconds */
+  setInterval(fetchUptime, 10000);
 
   /* Fetch the version once */
-  fetchVersion();
+  await fetchVersion();
+  /* Fetch the SSID once */
+  await fetchSSID();
 });
