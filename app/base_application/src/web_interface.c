@@ -84,6 +84,7 @@ static uint8_t domain_id_buf[256];
 static uint8_t micro_ros_status_buf[256];
 static uint8_t estop_buf[256];
 static uint8_t factory_reset_buf[256];
+static uint8_t agent_ip_buf[256];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -231,8 +232,6 @@ static int update_network_handler(struct http_client_ctx *client,
 
         case HTTP_SERVER_DATA_FINAL: {
             if (len > 0) {
-                LOG_DBG("Received data: %.*s", len, buffer);
-
                 struct wifi_settings_struct {
                     char *ssid;
                     char *password;
@@ -293,11 +292,9 @@ static int update_ros_settings_handler(struct http_client_ctx *client,
 
         case HTTP_SERVER_DATA_FINAL: {
             if (len > 0) {
-                LOG_DBG("Received data: %.*s", len, buffer);
-
                 struct ros_settings_struct {
                     char *namespace;
-                    char *ip;
+                    char *agent_ip;
                 };
 
                 struct ros_settings_struct ros_settings = { 0 };
@@ -305,7 +302,7 @@ static int update_ros_settings_handler(struct http_client_ctx *client,
                 // Parse JSON data and update network settings
                 struct json_obj_descr descr[] = {
                     JSON_OBJ_DESCR_PRIM(struct ros_settings_struct, namespace, JSON_TOK_STRING),
-                    JSON_OBJ_DESCR_PRIM(struct ros_settings_struct, ip, JSON_TOK_STRING),
+                    JSON_OBJ_DESCR_PRIM(struct ros_settings_struct, agent_ip, JSON_TOK_STRING),
                 };
                 int ret = json_obj_parse(buffer, len, descr, ARRAY_SIZE(descr), &ros_settings);
                 if (ret < 0) {
@@ -313,8 +310,6 @@ static int update_ros_settings_handler(struct http_client_ctx *client,
                     return snprintf(
                             buffer, len, "{\"status\":\"error\", \"message\":\"Invalid JSON\"}");
                 }
-
-                printk("Namespace: %s, Agent IP: %s", ros_settings.namespace, ros_settings.ip);
 
                 // Save Namespace and Agent IP to flash storage
                 if (flash_storage_write(
@@ -325,7 +320,9 @@ static int update_ros_settings_handler(struct http_client_ctx *client,
                             len,
                             "{\"status\":\"error\", \"message\":\"Failed to save SSID\"}");
                 }
-                if (flash_storage_write(AGENT_IP, ros_settings.ip, strlen(ros_settings.ip)) < 0) {
+                if (flash_storage_write(
+                            AGENT_IP, ros_settings.agent_ip, strlen(ros_settings.agent_ip))
+                        < 0) {
                     LOG_ERR("Failed to save agent IP to flash storage");
                     return snprintf(buffer,
                             len,
@@ -649,6 +646,47 @@ static int restart_system_handler(struct http_client_ctx *client,
     }
 }
 
+static int agent_ip_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    static bool response_sent;
+    LOG_DBG("Agent IP handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+
+            char agent_ip[64];
+            flash_storage_read(AGENT_IP, agent_ip, sizeof(agent_ip));
+
+            printk("Agent IP: %s", agent_ip);
+
+            return snprintf(buffer, sizeof(agent_ip_buf), "{\"agent_ip\":\"%s\"}", agent_ip);
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
 static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -781,6 +819,17 @@ static struct http_resource_detail_dynamic restart_system_resource_detail = {
     .user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic agent_ip_resource_detail = {
+    .common = {
+        .type = HTTP_RESOURCE_TYPE_DYNAMIC,
+        .bitmask_of_supported_http_methods = BIT(HTTP_GET),
+    },
+    .cb = agent_ip_handler,
+    .data_buffer = agent_ip_buf,
+    .data_buffer_len = sizeof(agent_ip_buf),
+    .user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -834,3 +883,6 @@ HTTP_RESOURCE_DEFINE(restart_system_resource,
         web_interface_service,
         "/restart_system",
         &restart_system_resource_detail);
+
+HTTP_RESOURCE_DEFINE(
+        agent_ip_resource, web_interface_service, "/agent_ip", &agent_ip_resource_detail);
