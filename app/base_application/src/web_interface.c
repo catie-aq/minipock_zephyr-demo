@@ -19,6 +19,7 @@
 #include <zephyr/sys/util_macro.h>
 
 #include "flash_storage.h"
+#include "micro_ros_node.h"
 #include "update.h"
 
 #include <zephyr/logging/log.h>
@@ -78,6 +79,7 @@ static uint8_t update_network_buf[256];
 static uint8_t ip_address_buf[256];
 static uint8_t namespace_buf[256];
 static uint8_t domain_id_buf[256];
+static uint8_t micro_ros_status_buf[256];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -408,6 +410,46 @@ static int domain_id_handler(struct http_client_ctx *client,
     }
 }
 
+static int micro_ros_status_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    static bool response_sent;
+    LOG_DBG("Micro-ROS Status handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+
+            enum states current_status = get_micro_ros_node_status();
+            const char *status_str = get_micro_ros_node_status_string(current_status);
+
+            return snprintf(
+                    buffer, sizeof(micro_ros_status_buf), "{\"status\":\"%s\"}", status_str);
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
 static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -485,6 +527,17 @@ static struct http_resource_detail_dynamic domain_id_resource_detail = {
 	.user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic micro_ros_status_resource_detail = {
+	.common = {
+			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
+			.bitmask_of_supported_http_methods = BIT(HTTP_GET),
+		},
+	.cb = micro_ros_status_handler,
+    .data_buffer = micro_ros_status_buf,
+    .data_buffer_len = sizeof(micro_ros_status_buf),
+	.user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -516,3 +569,8 @@ HTTP_RESOURCE_DEFINE(
 
 HTTP_RESOURCE_DEFINE(
         domain_id_resource, web_interface_service, "/domain_id", &domain_id_resource_detail);
+
+HTTP_RESOURCE_DEFINE(micro_ros_status_resource,
+        web_interface_service,
+        "/micro_ros_status",
+        &micro_ros_status_resource_detail);
