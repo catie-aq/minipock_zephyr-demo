@@ -180,6 +180,23 @@ document
       console.error("Failed to update network settings:", error.message);
     }
   });
+
+async function fetchIpAddress() {
+  try {
+    const response = await fetch("/ip");
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    console.log(response);
+    const json = await response.json();
+    console.log(json);
+    const ipAddressElement = document.getElementById("currentIp");
+    ipAddressElement.innerHTML = json.ip_address;
+  } catch (error) {
+    console.error(error.message);
+  }
+}
 window.addEventListener("DOMContentLoaded", async (ev) => {
   /* Fetch the uptime every 10 seconds */
   setInterval(fetchUptime, 10000);
@@ -188,4 +205,6 @@ window.addEventListener("DOMContentLoaded", async (ev) => {
   await fetchVersion();
   /* Fetch the SSID once */
   await fetchSSID();
+  /* Fetch the current IP address once */
+  await fetchIpAddress();
 });

@@ -13,7 +13,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/net/http/server.h>
 #include <zephyr/net/http/service.h>
-#include <zephyr/net/net_ip.h>
+#include <zephyr/net/net_core.h>
+#include <zephyr/net/net_if.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/sys/util_macro.h>
 
@@ -74,6 +75,7 @@ static uint8_t uptime_buf[sizeof(STRINGIFY(INT64_MAX))];
 static uint8_t version_buf[sizeof("255.255.255")];
 static uint8_t ssid_buf[100];
 static uint8_t update_network_buf[256];
+static uint8_t ip_address_buf[256];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -270,6 +272,62 @@ static int update_network_handler(struct http_client_ctx *client,
     }
 }
 
+static int ip_address_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    static bool response_sent;
+    LOG_DBG("IP Address handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+
+            struct net_if *iface = net_if_get_wifi_sta();
+            if (!iface) {
+                LOG_ERR("No default network interface found");
+                return snprintf(buffer,
+                        len,
+                        "{\"status\":\"error\", \"message\":\"No network interface\"}");
+            }
+
+            struct in_addr *addr = net_if_ipv4_get_global_addr(iface, NET_ADDR_PREFERRED);
+            if (!addr) {
+                LOG_ERR("Failed to get global IPv4 address");
+                return snprintf(
+                        buffer, len, "{\"status\":\"error\", \"message\":\"No IP address\"}");
+            }
+
+            char data[256];
+            snprintf(data,
+                    sizeof(data),
+                    "{\"ip_address\":\"%s\"}",
+                    net_addr_ntop(AF_INET, addr, ip_address_buf, sizeof(ip_address_buf)));
+            return snprintf(buffer, sizeof(data), "%s", data);
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
 static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -314,6 +372,17 @@ static struct http_resource_detail_dynamic update_network_resource_detail = {
 	.user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic ip_address_resource_detail = {
+	.common = {
+			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
+			.bitmask_of_supported_http_methods = BIT(HTTP_GET),
+		},
+	.cb = ip_address_handler,
+    .data_buffer = ip_address_buf,
+    .data_buffer_len = sizeof(ip_address_buf),
+	.user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -336,3 +405,6 @@ HTTP_RESOURCE_DEFINE(update_network_resource,
         web_interface_service,
         "/update_network",
         &update_network_resource_detail);
+
+HTTP_RESOURCE_DEFINE(
+        ip_address_resource, web_interface_service, "/ip", &ip_address_resource_detail);
