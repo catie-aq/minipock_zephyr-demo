@@ -72,22 +72,43 @@ document
     }, 1000); // Simulated delay for the check
   });
 
-document.getElementById("estopButton").addEventListener("click", function () {
-  const button = this;
-  const isActive = button.classList.contains("btn-danger");
+document
+  .getElementById("estopButton")
+  .addEventListener("click", async function () {
+    const button = this;
+    const isActive = button.classList.contains("btn-danger");
 
-  if (isActive) {
-    // E-Stop Released
-    button.classList.remove("btn-danger");
-    button.classList.add("btn-success");
-    button.style.animation = "";
-  } else {
-    // E-Stop Activated
-    button.classList.remove("btn-success");
-    button.classList.add("btn-danger");
-    button.style.animation = "pulse 2s infinite";
-  }
-});
+    try {
+      const response = await fetch("/estop", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ active: !isActive }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Response status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("E-Stop status updated:", result);
+    } catch (error) {
+      console.error("Failed to update E-Stop status:", error.message);
+    }
+
+    if (isActive) {
+      // E-Stop Released
+      button.classList.remove("btn-danger");
+      button.classList.add("btn-success");
+      button.style.animation = "";
+    } else {
+      // E-Stop Activated
+      button.classList.remove("btn-success");
+      button.classList.add("btn-danger");
+      button.style.animation = "pulse 2s infinite";
+    }
+  });
 
 async function fetchUptime() {
   try {
