@@ -80,6 +80,7 @@ static uint8_t ip_address_buf[256];
 static uint8_t namespace_buf[256];
 static uint8_t domain_id_buf[256];
 static uint8_t micro_ros_status_buf[256];
+static uint8_t estop_buf[256];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -450,6 +451,57 @@ static int micro_ros_status_handler(struct http_client_ctx *client,
     }
 }
 
+static int estop_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    printk("E-Stop handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (len > 0) {
+                LOG_DBG("Received data: %.*s", len, buffer);
+
+                struct estop_struct {
+                    bool active;
+                };
+
+                struct estop_struct estop_data = { 0 };
+
+                struct json_obj_descr descr[] = {
+                    JSON_OBJ_DESCR_PRIM(struct estop_struct, active, JSON_TOK_TRUE),
+                };
+                int ret = json_obj_parse(buffer, len, descr, ARRAY_SIZE(descr), &estop_data);
+                if (ret < 0) {
+                    LOG_ERR("Failed to parse JSON data: %d", ret);
+                    return snprintf(
+                            buffer, len, "{\"status\":\"error\", \"message\":\"Invalid JSON\"}");
+                }
+
+                if (estop_data.active) {
+                    LOG_INF("E-Stop activated");
+                    disable_cmd_vel();
+                } else {
+                    LOG_INF("E-Stop released");
+                    enable_cmd_vel();
+                }
+            }
+
+            return snprintf(buffer, len, "{\"status\":\"success\"}");
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
 static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -538,6 +590,17 @@ static struct http_resource_detail_dynamic micro_ros_status_resource_detail = {
 	.user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic estop_resource_detail = {
+    .common = {
+        .type = HTTP_RESOURCE_TYPE_DYNAMIC,
+        .bitmask_of_supported_http_methods = BIT(HTTP_POST),
+    },
+    .cb = estop_handler,
+    .data_buffer = estop_buf,
+    .data_buffer_len = sizeof(estop_buf),
+    .user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -574,3 +637,5 @@ HTTP_RESOURCE_DEFINE(micro_ros_status_resource,
         web_interface_service,
         "/micro_ros_status",
         &micro_ros_status_resource_detail);
+
+HTTP_RESOURCE_DEFINE(estop_resource, web_interface_service, "/estop", &estop_resource_detail);

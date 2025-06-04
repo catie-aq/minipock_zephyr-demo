@@ -54,6 +54,9 @@ static uint64_t ros_timestamp;
 
 bool iniatialized = true;
 
+static bool estop_active = false;
+
+static int chunk_id = 0;
 static uint8_t version[3] = { 0, 0, 0 };
 
 enum states state;
@@ -385,7 +388,9 @@ int init_micro_ros_node(void)
     // Initialize publishers
     init_odometry_publisher(&node);
     init_scan_publisher(&node);
-    init_cmd_vel_subscriber(&node);
+    if (!estop_active) {
+        init_cmd_vel_subscriber(&node);
+    }
 
     // Create client
     char service_name[75];
@@ -489,6 +494,34 @@ const char *get_micro_ros_node_status_string(enum states state)
         default:
             return "UNKNOWN";
     }
+}
+
+void disable_cmd_vel(void)
+{
+    estop_active = true;
+
+    if (state != CONNECTED) {
+        LOG_WRN("Cannot disable cmd_vel, node is not connected");
+        return;
+    }
+
+    if (rcl_subscription_fini(&cmd_vel_subscriber, &node) != RCL_RET_OK) {
+        LOG_ERR("Failed to disable cmd_vel subscriber");
+    } else {
+        LOG_INF("cmd_vel subscriber disabled successfully");
+    }
+}
+
+void enable_cmd_vel(void)
+{
+    estop_active = false;
+
+    if (state != CONNECTED) {
+        LOG_WRN("Cannot enable cmd_vel, node is not connected");
+        return;
+    }
+
+    init_cmd_vel_subscriber(&node);
 }
 
 void spin_micro_ros_node(void)
