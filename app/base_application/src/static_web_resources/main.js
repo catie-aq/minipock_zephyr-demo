@@ -197,6 +197,22 @@ async function fetchIpAddress() {
     console.error(error.message);
   }
 }
+
+async function fetchNamespace() {
+  try {
+    const response = await fetch("/namespace");
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    const namespaceElement = document.getElementById("currentNamespace");
+    namespaceElement.innerHTML = json.namespace;
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", async (ev) => {
   /* Fetch the uptime every 10 seconds */
   setInterval(fetchUptime, 10000);
@@ -207,4 +223,6 @@ window.addEventListener("DOMContentLoaded", async (ev) => {
   await fetchSSID();
   /* Fetch the current IP address once */
   await fetchIpAddress();
+  /* Fetch the current namespace once */
+  await fetchNamespace();
 });
