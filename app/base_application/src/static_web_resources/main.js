@@ -250,6 +250,42 @@ document
     }
   });
 
+document
+  .getElementById("saveRosSettingsButton")
+  .addEventListener("click", async function (e) {
+    e.preventDefault();
+
+    const namespace = document.getElementById("namespace").value;
+    const agent_ip = document.getElementById("agentIp").value;
+
+    try {
+      const response = await fetch("/update_ros_settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          namespace: namespace,
+          agent_ip: agent_ip,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Response status: ${response.status}`);
+      }
+
+      const resultText = await response.text();
+      if (resultText.trim() === "") {
+        throw new Error("Empty response from server");
+      }
+
+      const result = JSON.parse(resultText);
+      console.log("Network settings updated:", result);
+    } catch (error) {
+      console.error("Failed to update network settings:", error.message);
+    }
+  });
+
 async function fetchIpAddress() {
   try {
     const response = await fetch("/ip");
