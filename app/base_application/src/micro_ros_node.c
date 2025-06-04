@@ -56,7 +56,7 @@ bool iniatialized = true;
 
 static uint8_t version[3] = { 0, 0, 0 };
 
-enum states { WAITING_AGENT, AGENT_AVAILABLE, AGENT_CONNECTED, AGENT_DISCONNECTED } state;
+enum states state;
 
 void subscription_callback(const void *msgin)
 {
@@ -104,7 +104,7 @@ void lidar_scan_callback(const float *range_to_send,
     scan.angle_min = start_angle;
     scan.angle_max = end_angle;
 
-    if (state == AGENT_CONNECTED) {
+    if (state == CONNECTED) {
         if (rcl_publish(&scan_publisher, &scan, NULL) != RCL_RET_OK) {
             LOG_ERR("Failed to publish message");
         }
@@ -146,7 +146,7 @@ void send_odometry_callback(float x, float y, float theta)
     pose_stamped_msg.pose.orientation.y = q2;
     pose_stamped_msg.pose.orientation.z = q3;
 
-    if (state == AGENT_CONNECTED) {
+    if (state == CONNECTED) {
         if (rcl_publish(&odom_publisher, &pose_stamped_msg, NULL) != RCL_RET_OK) {
             LOG_ERR("Failed to publish odometry message");
         }
@@ -465,50 +465,71 @@ int init_micro_ros_node(void)
     }
 
     iniatialized = false;
-    state = WAITING_AGENT;
+    state = WAITING;
 
     return 0;
 }
 
+enum states get_micro_ros_node_status(void)
+{
+    return state;
+}
+
+const char *get_micro_ros_node_status_string(enum states state)
+{
+    switch (state) {
+        case WAITING:
+            return "WAITING";
+        case AVAILABLE:
+            return "AVAILABLE";
+        case CONNECTED:
+            return "CONNECTED";
+        case DISCONNECTED:
+            return "DISCONNECTED";
+        default:
+            return "UNKNOWN";
+    }
+}
+
 void spin_micro_ros_node(void)
 {
-    state = WAITING_AGENT;
+    state = WAITING;
 
     while (1) {
         switch (state) {
-            case WAITING_AGENT:
+            case WAITING:
                 if (rmw_uros_ping_agent(100, 1) == RMW_RET_OK) {
                     LOG_WRN("Agent found");
-                    state = AGENT_AVAILABLE;
+                    state = AVAILABLE;
                 }
                 break;
-            case AGENT_AVAILABLE:
+            case AVAILABLE:
                 if (init_micro_ros_node() == 0) {
                     LOG_WRN("Micro-ROS node initialized");
 
                     micro_ros_node_get_last_version();
 
-                    state = AGENT_CONNECTED;
+                    state = CONNECTED;
                 } else {
                     LOG_ERR("Failed to initialize micro-ROS node");
-                    state = AGENT_DISCONNECTED;
+                    state = DISCONNECTED;
                 }
                 break;
-            case AGENT_CONNECTED:
+            case CONNECTED:
                 int ret = rmw_uros_ping_agent(100, 10);
                 if (ret != RMW_RET_OK) {
-                    state = AGENT_DISCONNECTED;
+                    state = DISCONNECTED;
                 }
-                if (state == AGENT_CONNECTED) {
+                if (state == CONNECTED) {
                     LOG_DBG("Spinning micro-ROS node");
                     rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
                 }
                 break;
-            case AGENT_DISCONNECTED:
+            case DISCONNECTED:
                 LOG_WRN("Agent disconnected");
                 // k_timer_stop(&my_timer);
                 destroy_micro_ros_node();
-                state = WAITING_AGENT;
+                state = WAITING;
                 break;
             default:
                 break;

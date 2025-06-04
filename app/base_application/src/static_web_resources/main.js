@@ -228,10 +228,29 @@ async function fetchDomainId() {
   }
 }
 
-window.addEventListener("DOMContentLoaded", async (ev) => {
-  /* Fetch the uptime every 10 seconds */
-  setInterval(fetchUptime, 10000);
+async function fetchMicroRosStatus() {
+  try {
+    const response = await fetch("/micro_ros_status");
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
 
+    const json = await response.json();
+    const statusElement = document.getElementById("microRosStatus");
+    if (json.status === "WAITING" || json.status === "AVAILABLE") {
+      statusElement.className = "badge bg-warning";
+    } else if (json.status === "CONNECTED") {
+      statusElement.className = "badge bg-success";
+    } else {
+      statusElement.className = "badge bg-danger";
+    }
+    statusElement.innerHTML = json.status;
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+
+window.addEventListener("DOMContentLoaded", async (ev) => {
   /* Fetch the version once */
   await fetchVersion();
   /* Fetch the SSID once */
@@ -242,4 +261,9 @@ window.addEventListener("DOMContentLoaded", async (ev) => {
   await fetchNamespace();
   /* Fetch the current domain ID once */
   await fetchDomainId();
+
+  /* Fetch the micro-ROS status every 5 seconds */
+  setInterval(fetchMicroRosStatus, 5000);
+  /* Fetch the uptime every 10 seconds */
+  setInterval(fetchUptime, 10000);
 });
