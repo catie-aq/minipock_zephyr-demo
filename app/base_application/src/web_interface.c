@@ -77,6 +77,7 @@ static uint8_t uptime_buf[sizeof(STRINGIFY(INT64_MAX))];
 static uint8_t version_buf[sizeof("255.255.255")];
 static uint8_t ssid_buf[100];
 static uint8_t update_network_buf[256];
+static uint8_t update_ros_settings_buf[256];
 static uint8_t ip_address_buf[256];
 static uint8_t namespace_buf[256];
 static uint8_t domain_id_buf[256];
@@ -232,8 +233,6 @@ static int update_network_handler(struct http_client_ctx *client,
             if (len > 0) {
                 LOG_DBG("Received data: %.*s", len, buffer);
 
-                // char encoded[] = "{\"ssid\":\"sd\",\"password\":\"sd\"";
-
                 struct wifi_settings_struct {
                     char *ssid;
                     char *password;
@@ -264,6 +263,70 @@ static int update_network_handler(struct http_client_ctx *client,
                             PASSWORD, wifi_settings.password, strlen(wifi_settings.password))
                         < 0) {
                     LOG_ERR("Failed to save Password to flash storage");
+                    return snprintf(buffer,
+                            len,
+                            "{\"status\":\"error\", \"message\":\"Failed to save Password\"}");
+                }
+            }
+
+            return snprintf(buffer, len, "{\"status\":\"success\"}");
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
+static int update_ros_settings_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    printk("Update ROS Settings handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (len > 0) {
+                LOG_DBG("Received data: %.*s", len, buffer);
+
+                struct ros_settings_struct {
+                    char *namespace;
+                    char *ip;
+                };
+
+                struct ros_settings_struct ros_settings = { 0 };
+
+                // Parse JSON data and update network settings
+                struct json_obj_descr descr[] = {
+                    JSON_OBJ_DESCR_PRIM(struct ros_settings_struct, namespace, JSON_TOK_STRING),
+                    JSON_OBJ_DESCR_PRIM(struct ros_settings_struct, ip, JSON_TOK_STRING),
+                };
+                int ret = json_obj_parse(buffer, len, descr, ARRAY_SIZE(descr), &ros_settings);
+                if (ret < 0) {
+                    LOG_ERR("Failed to parse JSON data: %d", ret);
+                    return snprintf(
+                            buffer, len, "{\"status\":\"error\", \"message\":\"Invalid JSON\"}");
+                }
+
+                printk("Namespace: %s, Agent IP: %s", ros_settings.namespace, ros_settings.ip);
+
+                // Save Namespace and Agent IP to flash storage
+                if (flash_storage_write(
+                            NAMESPACE, ros_settings.namespace, strlen(ros_settings.namespace))
+                        < 0) {
+                    LOG_ERR("Failed to save namespace to flash storage");
+                    return snprintf(buffer,
+                            len,
+                            "{\"status\":\"error\", \"message\":\"Failed to save SSID\"}");
+                }
+                if (flash_storage_write(AGENT_IP, ros_settings.ip, strlen(ros_settings.ip)) < 0) {
+                    LOG_ERR("Failed to save agent IP to flash storage");
                     return snprintf(buffer,
                             len,
                             "{\"status\":\"error\", \"message\":\"Failed to save Password\"}");
@@ -630,6 +693,17 @@ static struct http_resource_detail_dynamic update_network_resource_detail = {
 	.user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic update_ros_settings_resource_detail = {
+	.common = {
+			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
+			.bitmask_of_supported_http_methods = BIT(HTTP_POST),
+		},
+	.cb = update_ros_settings_handler,
+    .data_buffer = update_ros_settings_buf,
+    .data_buffer_len = sizeof(update_ros_settings_buf),
+	.user_data = NULL,
+};
+
 static struct http_resource_detail_dynamic ip_address_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -729,6 +803,11 @@ HTTP_RESOURCE_DEFINE(update_network_resource,
         web_interface_service,
         "/update_network",
         &update_network_resource_detail);
+
+HTTP_RESOURCE_DEFINE(update_ros_settings_resource,
+        web_interface_service,
+        "/update_ros_settings",
+        &update_ros_settings_resource_detail);
 
 HTTP_RESOURCE_DEFINE(
         ip_address_resource, web_interface_service, "/ip", &ip_address_resource_detail);
