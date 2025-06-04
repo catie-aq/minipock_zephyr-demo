@@ -128,6 +128,27 @@
                         <label class="form-check-label" for="dhcpEnabled"
                           >Enable DHCP</label
                         >
+                        <div
+                          id="dhcpWarning"
+                          class="text-danger mt-2"
+                          style="display: none"
+                        >
+                          Static IP configuration is not supported in this
+                          version.
+                        </div>
+                        <script>
+                          document
+                            .getElementById("dhcpEnabled")
+                            .addEventListener("change", function () {
+                              const dhcpWarning =
+                                document.getElementById("dhcpWarning");
+                              if (!this.checked) {
+                                dhcpWarning.style.display = "block";
+                              } else {
+                                dhcpWarning.style.display = "none";
+                              }
+                            });
+                        </script>
                       </div>
                       <div id="static-ip-section">
                         <div class="mb-3">
