@@ -77,6 +77,7 @@ static uint8_t ssid_buf[100];
 static uint8_t update_network_buf[256];
 static uint8_t ip_address_buf[256];
 static uint8_t namespace_buf[256];
+static uint8_t domain_id_buf[256];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -368,6 +369,45 @@ static int namespace_handler(struct http_client_ctx *client,
     }
 }
 
+static int domain_id_handler(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    static bool response_sent;
+    LOG_DBG("Domain ID handler status %d", status);
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+
+            return snprintf(buffer,
+                    sizeof(domain_id_buf),
+                    "{\"domain_id\":\"%d\"}",
+                    CONFIG_ROS_ROS_DOMAIN_ID);
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
 static struct http_resource_detail_dynamic uptime_resource_detail = {
 	.common = {
 			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
@@ -434,6 +474,17 @@ static struct http_resource_detail_dynamic namespace_resource_detail = {
 	.user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic domain_id_resource_detail = {
+	.common = {
+			.type = HTTP_RESOURCE_TYPE_DYNAMIC,
+			.bitmask_of_supported_http_methods = BIT(HTTP_GET),
+		},
+	.cb = domain_id_handler,
+    .data_buffer = domain_id_buf,
+    .data_buffer_len = sizeof(domain_id_buf),
+	.user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -462,3 +513,6 @@ HTTP_RESOURCE_DEFINE(
 
 HTTP_RESOURCE_DEFINE(
         namespace_resource, web_interface_service, "/namespace", &namespace_resource_detail);
+
+HTTP_RESOURCE_DEFINE(
+        domain_id_resource, web_interface_service, "/domain_id", &domain_id_resource_detail);

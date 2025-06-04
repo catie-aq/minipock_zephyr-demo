@@ -213,6 +213,21 @@ async function fetchNamespace() {
   }
 }
 
+async function fetchDomainId() {
+  try {
+    const response = await fetch("/domain_id");
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    const domainIdElement = document.getElementById("currentDomainId");
+    domainIdElement.innerHTML = json.domain_id;
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", async (ev) => {
   /* Fetch the uptime every 10 seconds */
   setInterval(fetchUptime, 10000);
@@ -225,4 +240,6 @@ window.addEventListener("DOMContentLoaded", async (ev) => {
   await fetchIpAddress();
   /* Fetch the current namespace once */
   await fetchNamespace();
+  /* Fetch the current domain ID once */
+  await fetchDomainId();
 });
