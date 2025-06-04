@@ -81,6 +81,7 @@ static uint8_t namespace_buf[256];
 static uint8_t domain_id_buf[256];
 static uint8_t micro_ros_status_buf[256];
 static uint8_t estop_buf[256];
+static uint8_t factory_reset_buf[256];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
@@ -418,7 +419,6 @@ static int micro_ros_status_handler(struct http_client_ctx *client,
         void *user_data)
 {
     static bool response_sent;
-    LOG_DBG("Micro-ROS Status handler status %d", status);
 
     switch (status) {
         case HTTP_SERVER_DATA_ABORTED: {
@@ -443,6 +443,49 @@ static int micro_ros_status_handler(struct http_client_ctx *client,
 
             return snprintf(
                     buffer, sizeof(micro_ros_status_buf), "{\"status\":\"%s\"}", status_str);
+        }
+        default: {
+            LOG_WRN("Unexpected status %d", status);
+            return -1;
+        }
+    }
+}
+
+static int reset_to_factory_settings(struct http_client_ctx *client,
+        enum http_data_status status,
+        uint8_t *buffer,
+        size_t len,
+        void *user_data)
+{
+    static bool response_sent;
+
+    switch (status) {
+        case HTTP_SERVER_DATA_ABORTED: {
+            response_sent = false;
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_MORE: {
+            return 0;
+        }
+
+        case HTTP_SERVER_DATA_FINAL: {
+            if (response_sent) {
+                response_sent = false;
+                return 0;
+            }
+
+            response_sent = true;
+
+            // Reset namespace to default
+            flash_storage_write(NAMESPACE, CONFIG_ROS_NAMESPACE, strlen(CONFIG_ROS_NAMESPACE));
+            flash_storage_write(
+                    AGENT_IP, CONFIG_MICROROS_AGENT_IP, strlen(CONFIG_MICROROS_AGENT_IP));
+
+            LOG_INF("Factory settings reset complete");
+            return snprintf(buffer,
+                    sizeof(micro_ros_status_buf),
+                    "{\"status\":\"success\", \"message\":\"Factory settings reset\"}");
         }
         default: {
             LOG_WRN("Unexpected status %d", status);
@@ -601,6 +644,17 @@ static struct http_resource_detail_dynamic estop_resource_detail = {
     .user_data = NULL,
 };
 
+static struct http_resource_detail_dynamic factory_reset_resource_detail = {
+    .common = {
+        .type = HTTP_RESOURCE_TYPE_DYNAMIC,
+        .bitmask_of_supported_http_methods = BIT(HTTP_POST),
+    },
+    .cb = reset_to_factory_settings,
+    .data_buffer = factory_reset_buf,
+    .data_buffer_len = sizeof(factory_reset_buf),
+    .user_data = NULL,
+};
+
 static uint16_t web_interface_service_port = 80;
 HTTP_SERVICE_DEFINE(web_interface_service, NULL, &web_interface_service_port, 1, 10, NULL);
 
@@ -639,3 +693,8 @@ HTTP_RESOURCE_DEFINE(micro_ros_status_resource,
         &micro_ros_status_resource_detail);
 
 HTTP_RESOURCE_DEFINE(estop_resource, web_interface_service, "/estop", &estop_resource_detail);
+
+HTTP_RESOURCE_DEFINE(factory_reset_resource,
+        web_interface_service,
+        "/factory_reset",
+        &factory_reset_resource_detail);

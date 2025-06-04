@@ -427,5 +427,48 @@
         </div>
       </div>
     </div>
+
+    <div
+      class="modal fade"
+      id="resetParamsModal"
+      tabindex="-1"
+      aria-labelledby="resetParamsModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="resetParamsModalLabel">
+              Confirm Reset
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            Are you sure you want to reset the system parameters?
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn btn-warning"
+              id="confirmResetParamsButton"
+            >
+              <i class="bi bi-arrow-counterclockwise me-2"></i>Confirm Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
