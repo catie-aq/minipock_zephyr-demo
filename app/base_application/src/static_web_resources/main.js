@@ -280,9 +280,13 @@ document
       }
 
       const result = JSON.parse(resultText);
-      console.log("Network settings updated:", result);
+
+      if (result.status === "success") {
+        document.getElementById("currentNamespace").innerHTML = namespace;
+        document.getElementById("currentAgentIp").innerHTML = agent_ip;
+      }
     } catch (error) {
-      console.error("Failed to update network settings:", error.message);
+      console.error("Failed to update ROS settings:", error.message);
     }
   });
 
