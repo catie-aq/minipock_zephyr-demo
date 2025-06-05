@@ -93,7 +93,6 @@ static int uptime_handler(struct http_client_ctx *client,
         void *user_data)
 {
     static bool response_sent;
-    // LOG_DBG("Uptime handler status %d", status);
 
     switch (status) {
         case HTTP_SERVER_DATA_ABORTED: {
@@ -102,17 +101,11 @@ static int uptime_handler(struct http_client_ctx *client,
         }
 
         case HTTP_SERVER_DATA_MORE: {
-            /* A payload is not expected with the GET request. Ignore any data and wait until
-             * final callback before sending response
-             */
             return 0;
         }
 
         case HTTP_SERVER_DATA_FINAL: {
             if (response_sent) {
-                /* Response already sent, return 0 to indicate to server that the callback
-                 * does not need to be called again.
-                 */
                 response_sent = false;
                 return 0;
             }
@@ -134,7 +127,6 @@ static int version_handler(struct http_client_ctx *client,
         void *user_data)
 {
     static bool response_sent;
-    LOG_DBG("Version handler status %d", status);
 
     switch (status) {
         case HTTP_SERVER_DATA_ABORTED: {
@@ -143,17 +135,11 @@ static int version_handler(struct http_client_ctx *client,
         }
 
         case HTTP_SERVER_DATA_MORE: {
-            /* A payload is not expected with the GET request. Ignore any data and wait until
-             * final callback before sending response
-             */
             return 0;
         }
 
         case HTTP_SERVER_DATA_FINAL: {
             if (response_sent) {
-                /* Response already sent, return 0 to indicate to server that the callback
-                 * does not need to be called again.
-                 */
                 response_sent = false;
                 return 0;
             }
@@ -185,7 +171,6 @@ static int ssid_handler(struct http_client_ctx *client,
         void *user_data)
 {
     static bool response_sent;
-    LOG_DBG("SSID handler status %d", status);
 
     switch (status) {
         case HTTP_SERVER_DATA_ABORTED: {
@@ -223,8 +208,6 @@ static int update_network_handler(struct http_client_ctx *client,
         size_t len,
         void *user_data)
 {
-    printk("Update Network handler status %d", status);
-
     switch (status) {
         case HTTP_SERVER_DATA_ABORTED: {
             return 0;
@@ -283,8 +266,6 @@ static int update_ros_settings_handler(struct http_client_ctx *client,
         size_t len,
         void *user_data)
 {
-    printk("Update ROS Settings handler status %d", status);
-
     switch (status) {
         case HTTP_SERVER_DATA_ABORTED: {
             return 0;
@@ -402,7 +383,6 @@ static int namespace_handler(struct http_client_ctx *client,
         void *user_data)
 {
     static bool response_sent;
-    LOG_DBG("Namespace handler status %d", status);
 
     switch (status) {
         case HTTP_SERVER_DATA_ABORTED: {
