@@ -75,16 +75,16 @@ static struct http_resource_detail_static style_css_gz_resource_detail = {
 
 static uint8_t uptime_buf[sizeof(STRINGIFY(INT64_MAX))];
 static uint8_t version_buf[sizeof("255.255.255")];
-static uint8_t ssid_buf[100];
-static uint8_t update_network_buf[256];
-static uint8_t update_ros_settings_buf[256];
-static uint8_t ip_address_buf[256];
-static uint8_t namespace_buf[256];
-static uint8_t domain_id_buf[256];
-static uint8_t micro_ros_status_buf[256];
-static uint8_t estop_buf[256];
-static uint8_t factory_reset_buf[256];
-static uint8_t agent_ip_buf[256];
+static uint8_t ssid_buf[80];
+static uint8_t update_network_buf[80];
+static uint8_t update_ros_settings_buf[80];
+static uint8_t ip_address_buf[80];
+static uint8_t namespace_buf[80];
+static uint8_t domain_id_buf[80];
+static uint8_t micro_ros_status_buf[80];
+static uint8_t estop_buf[80];
+static uint8_t factory_reset_buf[80];
+static uint8_t agent_ip_buf[80];
 
 static int uptime_handler(struct http_client_ctx *client,
         enum http_data_status status,
