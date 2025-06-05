@@ -1,5 +1,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
+#include <zephyr/net/http/server.h>
 #include <zephyr/net/net_context.h>
 #include <zephyr/net/net_core.h>
 #include <zephyr/net/net_if.h>
